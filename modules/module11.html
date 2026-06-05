@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Module 11 - Finals | Risk Signals in Consumer Lending</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="home-link" href="../index.html">Risk Signals in Consumer Lending</a>
+    <nav><a class="" href="module01.html">Module 1</a>
+<a class="" href="module02.html">Module 2</a>
+<a class="" href="module03.html">Module 3</a>
+<a class="" href="module04.html">Module 4</a>
+<a class="" href="module05.html">Module 5</a>
+<a class="" href="module06.html">Module 6</a>
+<a class="" href="module07.html">Module 7</a>
+<a class="" href="module08.html">Module 8</a>
+<a class="" href="module09.html">Module 9</a>
+<a class="" href="module10.html">Module 10</a>
+<a class="active" href="module11.html">Module 11</a></nav>
+  </header>
+
+  <main class="page">
+    <section class="page-hero">
+      <p class="eyebrow">CS 432 Project Journal</p>
+      <h1>Module 11 - Finals</h1>
+      <p>Closing out the term, looking back at the whole arc of the project, and being honest about what I would do next.</p>
+    </section>
+
+<section>
+  <h2>Looking back at the whole arc</h2>
+  <p>
+    Reaching the end of the course and looking back over the modules, what strikes me is how much ground a single dataset can cover when you keep returning to it with
+    new tools. The same German Credit and Lending Club records that I clustered blind in the early modules came back as the proving ground for regression, trees,
+    Naive Bayes, support vector machines, and ensembles. Studying for finals meant revisiting that whole sequence, and seeing it laid end to end finally made the shape
+    of the field click for me, how unsupervised methods find structure, how supervised methods predict, and how ensembles combine.
+  </p>
+  <p>
+    The single biggest thing the project drove home is that lending risk is rarely simple. Going in, I half expected one or two variables to act as obvious red flags.
+    What I found instead was that the signal was spread across account status, repayment burden, loan structure, and borrower capacity, and that no model could lean on
+    a single shortcut and do well. That lesson showed up so consistently, across so many different methods, that it stopped feeling like a result and started feeling
+    like the actual nature of the problem.
+  </p>
+</section>
+
+<section>
+  <h2>What I would do differently</h2>
+  <p>
+    If I picked this project back up, a few improvements stand near the top of the list. The German Credit data is small and somewhat dated, so a larger and more
+    current dataset would let me trust the patterns more and lean harder on the higher risk group rather than fighting its small size with class balancing. I would
+    also want more genuine outcome data, since so much of Lending Club skews toward Current loans, and a fuller spread of defaults and charge offs would give the
+    classifiers far more to learn from.
+  </p>
+  <p>
+    On the complaint side, I only used word counts and presence flags, which left most of the meaning in those narratives on the table. Reading the complaint text
+    properly with real language techniques would almost certainly beat the bag of words approach that struggled in the Naive Bayes module. Beyond that I would like to
+    compare loan types directly rather than pooling them, and I would want to take fairness and transparency seriously, checking whether the signals my models rely on
+    treat different groups of borrowers evenly. A model that flags risk well but does so unfairly is not actually a good model, and that question deserves its own
+    careful work.
+  </p>
+</section>
+
+<section>
+  <h2>What I am taking with me</h2>
+  <p>
+    More than any single algorithm, I am leaving this course with a healthier set of instincts. I learned to look past a tidy accuracy number to the mistakes hiding
+    underneath it, to respect how much the early cleaning and feature choices shape everything downstream, and to stay suspicious of a model that sounds confident
+    without being checked. The credit amount per month feature I built in the first module quietly proving its worth in nearly every model that followed taught me that
+    thoughtful preparation often matters more than the fanciness of the method.
+  </p>
+  <p>
+    Mostly I am glad I picked a topic with real weight. It would have been easier to model something inconsequential, but tying every result back to borrowers and
+    lenders kept the work meaningful from the first dataset to this final page, and that is the habit I most want to carry into whatever I build next.
+  </p>
+</section>
+
+  </main>
+
+  <footer>
+    <p>Created by Richard Le for CS 432: Intro to Applied Machine Learning.</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Risk Signals in Consumer Lending</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="homepage">
+    <section class="hero">
+      <p class="eyebrow">CS 432: Intro to Applied Machine Learning</p>
+      <h1>Risk Signals in Consumer Lending</h1>
+      <p>A project journal studying credit quality and default risk through data cleaning, visualization, clustering, PCA, regression, classification, and ensemble learning.</p>
+      <a class="button" href="assets/report/project-report.docx">Download Full Project Report</a>
+      <a class="button secondary" href="code/">View Project Code Folder</a>
+    </section>
+
+    <section>
+      <h2>Project overview</h2>
+      <p>
+        This project digs into consumer lending risk from three angles on the same idea, borrower records, loan level information, and mortgage related consumer
+        complaints. The question I kept coming back to was how borrower characteristics, loan structure, repayment pressure, and complaint patterns actually connect to
+        credit quality and default related outcomes.
+      </p>
+      <p>
+        I wrote it up as a journal that follows the eleven modules of the course rather than as a single report, so each page covers what I did, what I found, and what
+        it meant from a risk perspective. The point is to show how the project came together, not just where it landed.
+      </p>
+    </section>
+
+    <section>
+      <h2>Project modules</h2>
+      <div class="cards">
+
+    <div class="card">
+      <h3>Module 1 - Introduction to Machine Learning</h3>
+      <p>Framing the question, gathering three datasets, cleaning them, and a first look at the data.</p>
+      <a href="modules/module01.html">Open Module 1</a>
+    </div>
+    <div class="card">
+      <h3>Module 2 - Unsupervised Learning, Clustering</h3>
+      <p>Letting KMeans and hierarchical clustering sort borrowers into natural groups.</p>
+      <a href="modules/module02.html">Open Module 2</a>
+    </div>
+    <div class="card">
+      <h3>Module 3 - Unsupervised Learning, Dimensionality Reduction</h3>
+      <p>Compressing the data with PCA, then clustering inside that smaller space.</p>
+      <a href="modules/module03.html">Open Module 3</a>
+    </div>
+    <div class="card">
+      <h3>Module 4 - Supervised Learning, Linear Regression</h3>
+      <p>Predicting a borrower's monthly installment and seeing what it can and cannot tell us.</p>
+      <a href="modules/module04.html">Open Module 4</a>
+    </div>
+    <div class="card">
+      <h3>Module 5 - Supervised Learning, Logistic Regression</h3>
+      <p>Turning borrower traits into a probability of higher credit risk.</p>
+      <a href="modules/module05.html">Open Module 5</a>
+    </div>
+    <div class="card">
+      <h3>Module 6 - Supervised Learning, Decision Trees</h3>
+      <p>Classifying borrowers with simple yes or no rules across three competing trees.</p>
+      <a href="modules/module06.html">Open Module 6</a>
+    </div>
+    <div class="card">
+      <h3>Module 7 - Supervised Learning, Naive Bayes</h3>
+      <p>Four flavors of the classifier set loose on borrower records and complaint text.</p>
+      <a href="modules/module07.html">Open Module 7</a>
+    </div>
+    <div class="card">
+      <h3>Module 8 - Supervised Learning, Support Vector Machines</h3>
+      <p>Searching kernels and cost settings for the boundary that best splits the risk groups.</p>
+      <a href="modules/module08.html">Open Module 8</a>
+    </div>
+    <div class="card">
+      <h3>Module 9 - Ensemble Methods, Bagging, Boosting and Stacking</h3>
+      <p>Combining models through bagging, boosting, and stacking for the strongest classifier.</p>
+      <a href="modules/module09.html">Open Module 9</a>
+    </div>
+    <div class="card">
+      <h3>Module 10 - Final Project Report, Data Science Communication</h3>
+      <p>Pulling the analysis into one story about what really signals lending risk.</p>
+      <a href="modules/module10.html">Open Module 10</a>
+    </div>
+    <div class="card">
+      <h3>Module 11 - Finals</h3>
+      <p>A closing reflection on the term and what I would do next.</p>
+      <a href="modules/module11.html">Open Module 11</a>
+    </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Datasets used</h2>
+      <div class="cards">
+        <div class="card">
+          <h3>German Credit Data</h3>
+          <p>Borrower level credit risk data used for risk classification and feature interpretation.</p>
+        </div>
+        <div class="card">
+          <h3>Lending Club Loans</h3>
+          <p>Loan level data used for borrower segmentation, PCA, regression, and loan outcome analysis.</p>
+        </div>
+        <div class="card">
+          <h3>CFPB Complaints API</h3>
+          <p>Mortgage related complaint data used to connect lending risk to borrower experience.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Created by Richard Le for CS 432: Intro to Applied Machine Learning.</p>
+  </footer>
+</body>
+</html>

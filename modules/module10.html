@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Module 10 - Final Project Report, Data Science Communication | Risk Signals in Consumer Lending</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="home-link" href="../index.html">Risk Signals in Consumer Lending</a>
+    <nav><a class="" href="module01.html">Module 1</a>
+<a class="" href="module02.html">Module 2</a>
+<a class="" href="module03.html">Module 3</a>
+<a class="" href="module04.html">Module 4</a>
+<a class="" href="module05.html">Module 5</a>
+<a class="" href="module06.html">Module 6</a>
+<a class="" href="module07.html">Module 7</a>
+<a class="" href="module08.html">Module 8</a>
+<a class="" href="module09.html">Module 9</a>
+<a class="active" href="module10.html">Module 10</a>
+<a class="" href="module11.html">Module 11</a></nav>
+  </header>
+
+  <main class="page">
+    <section class="page-hero">
+      <p class="eyebrow">CS 432 Project Journal</p>
+      <h1>Module 10 - Final Project Report, Data Science Communication</h1>
+      <p>Pulling nine modules of analysis into one story about what actually signals lending risk, and how to tell it clearly.</p>
+    </section>
+
+<section>
+  <h2>What nine modules added up to</h2>
+  <p>
+    The most valuable thing about working through so many methods on the same problem is that you start to see which findings are real and which were flukes of a
+    single algorithm. A handful of signals kept resurfacing no matter what model I pointed at the data. Whether a borrower had an unknown checking account turned out to
+    be the single most powerful divider, leading the splits in the decision trees, topping the linear support vector machine's weights, and ranking first in the random
+    forest. Right behind it sat the monthly burden feature I engineered back in the first module, along with loan duration and credit amount. The fact that the same
+    short list led in clustering, in tree splits, in regression coefficients, and in ensemble importances is what convinced me these were structural truths about the
+    data rather than coincidences.
+  </p>
+  <p>
+    The clearest overall lesson is that lending risk does not live in any one variable. It emerges from a combination of account status, repayment burden, loan
+    structure, and borrower capacity working together. Every model that did well did so by weighing several of these at once, and the model that tried to lean on a
+    single easy pattern, the Naive Bayes text classifier defaulting to the majority class, was also the weakest. Risk is a mosaic, and you only see the picture when you
+    step back from any single tile.
+  </p>
+</section>
+
+<section>
+  <h2>The borrowers the data kept describing</h2>
+  <p>
+    Across the unsupervised and supervised work the same kinds of borrowers kept taking shape. There was a lower burden group carrying modest loans and gentle
+    payments. There was a stronger capacity group with high income, deep credit histories, and plenty of room to borrow. And there was a heavier obligation group
+    shouldering large or long loans without the financial cushion to match, which is the profile that most deserves a careful second look. Clustering found these
+    groups without ever seeing an outcome, and the classifiers leaned on the very same traits to sort borrowers by risk, so the segmentation and the prediction were
+    really two views of one underlying structure.
+  </p>
+  <p>
+    The complaint data added a fourth kind of borrower to keep in mind, the one whose loan has already gone wrong. Those records are not about predicting risk so much
+    as showing what it looks like once it arrives, which kept the whole project grounded in consequences rather than abstractions.
+  </p>
+</section>
+
+<section>
+  <h2>What the complaints made real</h2>
+  <p>
+    The CFPB data was the part that kept me honest. Mortgage complaints piled up overwhelmingly on conventional home mortgages, with FHA, VA, and HELOC products
+    trailing, and when I read what people were actually upset about, the top issues were trouble during the payment process and simply struggling to pay. That is the
+    same repayment pressure my models kept flagging as important, except here it was no longer a coefficient or a feature importance. It was thousands of people in a
+    bad spot.
+  </p>
+  <p>
+    Holding the predictive work and the complaint work next to each other changed how I read both. A high monthly burden is a number in a model and a missed payment in
+    someone's life, and keeping those two meanings tied together is, to me, the whole point of doing this kind of analysis on a topic that matters.
+  </p>
+</section>
+
+<section>
+  <h2>Two kinds of mistakes, both costly</h2>
+  <p>
+    Watching the confusion matrices across every classifier taught me to think hard about the two ways a model can be wrong, because in lending they are not
+    interchangeable. A false negative is a risky borrower the model waved through, which can mean a loan that should have had more scrutiny. A false positive is a
+    sound borrower the model flagged, which can mean someone denied credit or charged more than they should be. One protects the lender and the other protects the
+    borrower, and chasing one too hard usually sacrifices the other. My best ensembles caught roughly four in five risky borrowers, which is genuinely useful, but they
+    were right only about half the time when they raised a flag, so the false positives were real.
+  </p>
+  <p>
+    That trade off is why I would never hand any of these models the final say. The honest framing is that they are good at surfacing borrowers who deserve a closer
+    look, and they pair best with human judgment and consistent review rather than replacing it. A model that catches most of the risk while occasionally crying wolf
+    is a helpful assistant, not an automatic decision maker, and pretending otherwise would be the dangerous reading of these results.
+  </p>
+</section>
+
+<section>
+  <h2>Telling the story so it lands</h2>
+  <p>
+    The final piece of the course was communication, and that shaped how this whole site is built. I made an early decision to read every result two ways at once, as a
+    machine learning outcome and as something that means something about real people, and I tried to carry that voice through every module rather than dumping metrics
+    and moving on. The journal format let me show the work in the order I actually did it, so a reader can follow the reasoning from a raw dataset all the way to a
+    tuned ensemble without needing to take my word for any single step.
+  </p>
+  <p>
+    I leaned on visuals to do the heavy lifting wherever a chart could say it faster than a paragraph, kept the tables focused on the comparisons that mattered, and
+    tried to write for a curious reader rather than only for a grader. Good data science communication, as far as I can tell, is mostly about respecting your audience
+    enough to be clear, to admit what the models cannot do, and to connect the numbers back to why anyone should care. That is what I hope this report manages to do.
+  </p>
+</section>
+
+  </main>
+
+  <footer>
+    <p>Created by Richard Le for CS 432: Intro to Applied Machine Learning.</p>
+  </footer>
+</body>
+</html>

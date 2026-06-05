@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Module 1 - Introduction to Machine Learning | Risk Signals in Consumer Lending</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="home-link" href="../index.html">Risk Signals in Consumer Lending</a>
+    <nav><a class="active" href="module01.html">Module 1</a>
+<a class="" href="module02.html">Module 2</a>
+<a class="" href="module03.html">Module 3</a>
+<a class="" href="module04.html">Module 4</a>
+<a class="" href="module05.html">Module 5</a>
+<a class="" href="module06.html">Module 6</a>
+<a class="" href="module07.html">Module 7</a>
+<a class="" href="module08.html">Module 8</a>
+<a class="" href="module09.html">Module 9</a>
+<a class="" href="module10.html">Module 10</a>
+<a class="" href="module11.html">Module 11</a></nav>
+  </header>
+
+  <main class="page">
+    <section class="page-hero">
+      <p class="eyebrow">CS 432 Project Journal</p>
+      <h1>Module 1 - Introduction to Machine Learning</h1>
+      <p>Framing the lending risk question, gathering three datasets, cleaning them, and taking a first look at what is inside.</p>
+    </section>
+
+<section>
+  <h2>Where the project started</h2>
+  <p>
+    I came into this project wanting to study something with real stakes rather than a tidy textbook dataset, and consumer lending risk kept rising to the top of the
+    list. Part of that is personal. A lot of my day to day work already revolves around weighing signals and deciding how much risk is acceptable, so lending felt
+    familiar and worth a closer look. The other part is that lending is one of those areas where the data and the consequences line up cleanly. A single decision about
+    a loan turns into an approval or a denial, an interest rate, a monthly payment someone carries for years, and sometimes a complaint when things fall apart.
+  </p>
+  <p>
+    So instead of chasing a single accuracy number, I built the project around a question. What patterns in lending data actually point toward higher credit risk, and
+    what do those patterns mean once you sit with them. Keeping the goal that open mattered, because the rest of the course works through clustering, dimensionality
+    reduction, regression, and a whole stack of classifiers, and I wanted a topic with enough substance to carry all of them rather than one that fizzles out after the
+    first method.
+  </p>
+  <p>
+    That choice also told me what kind of data to go find. I needed public, labeled, record style data, the sort of thing I could use two different ways. For the
+    unsupervised work I could set the label aside and let the models discover borrower groupings on their own. For the supervised work I could bring the label back and
+    actually predict it. Picking data with that double life in mind early on saved me from painting myself into a corner later in the term.
+  </p>
+</section>
+
+<section>
+  <h2>The three datasets</h2>
+  <p>
+    I ended up with three sources, and I picked them so each one would pull its weight on a different part of the story. The first is the German Credit dataset from
+    Kaggle, a compact file of 954 borrower records with nine original variables and a credit risk label. It is small, but every column relates directly to a borrower,
+    things like age, credit amount, loan duration, sex, housing, savings and checking account status, job, and the purpose of the loan. That makes it a clean fit for
+    credit risk classification down the line.
+  </p>
+  <p>
+    The second is the Lending Club loan dataset, also from Kaggle, and it is the heavy one. The raw file holds 10,000 loans described by 54 variables before I trimmed
+    anything. It carries borrower details, loan terms, credit utilization fields, loan grades and sub grades, and a loan_status outcome that spans six categories,
+    running from Current and Fully Paid through several stages of late payment all the way to Charged Off. That depth is exactly what makes it useful for clustering,
+    dimensionality reduction, regression, and outcome work later.
+  </p>
+  <p>
+    The third source is different in kind. I pulled mortgage complaint records from the Consumer Financial Protection Bureau through its public API, requesting
+    complaints filed across 2025 in CSV form and sorting them by most recent. Where the first two datasets describe loans and borrowers, this one captures what people
+    actually said when something went wrong, which adds a human layer that loan tables on their own simply cannot. The screenshots below show all three in their raw
+    state, before any cleaning touched them.
+  </p>
+  <div class="visuals">
+      <figure>
+        <img src="../assets/module01/german_credit_raw_screenshot.png" alt="Raw German Credit dataset as downloaded, before cleaning.">
+        <figcaption>The German Credit file as downloaded from Kaggle.</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/module01/lending_club_raw_1_screenshot.png" alt="Raw Lending Club dataset as downloaded, before cleaning.">
+        <figcaption>The Lending Club file, wide and only partly relevant before trimming.</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/module01/cfpb_api_raw_screenshot.png" alt="Raw CFPB API response in CSV format.">
+        <figcaption>The raw CFPB API response, straight out of the request.</figcaption>
+      </figure>
+  </div>
+</section>
+
+<section>
+  <h2>Getting the data into shape</h2>
+  <p>
+    None of the three files arrived ready to model, and the differences between them are exactly why cleaning is not just busywork. Every choice about what to keep,
+    what to fill, and what to recode quietly decides what the later analysis is even able to see, so I tried to treat it as part of the thinking rather than a chore to
+    rush through.
+  </p>
+  <p>
+    The German Credit file needed the least surgery. I dropped a leftover index column, standardized the names, and tidied the text fields. Where savings or checking
+    account information was missing I filled it with an unknown category instead of deleting the row, since a thin account record can itself say something about a
+    borrower. I treated job as a category rather than a number, and I built one new feature called credit amount per month by dividing the credit amount by the loan
+    duration. That single derived column ended up mattering more than I expected, because it captures how heavy a loan feels month to month rather than just how large
+    it is in total. After all of that the file held ten variables and the label, with no duplicates.
+  </p>
+  <p>
+    Lending Club took the most pruning. From the original 54 variables I kept a focused set of 27 plus loan_status and dropped the columns that were sparse or beside
+    the point. Missing employer titles became unknown, and I filled gaps in employment length and debt to income with their medians so I would not bleed records for no
+    good reason. The CFPB data needed a pass of its own. I narrowed it to mortgage complaints, kept eleven useful fields, standardized the text, filled missing
+    categories with unknown, and converted the received date into a real datetime so I could track complaints over time. Once duplicates were removed it settled at
+    24,633 mortgage complaints. The cleaned versions of all three sit below.
+  </p>
+  <div class="visuals">
+      <figure>
+        <img src="../assets/module01/german_credit_cleaned_screenshot.png" alt="Cleaned German Credit dataset after preparation.">
+        <figcaption>German Credit after cleaning, with the per month burden feature added.</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/module01/lending_club_cleaned_screenshot.png" alt="Cleaned Lending Club dataset after trimming to 27 variables.">
+        <figcaption>Lending Club trimmed to the 27 variables that earn their place.</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/module01/cfpb_api_cleaned_screenshot.png" alt="Cleaned CFPB complaint dataset after import and preparation.">
+        <figcaption>The CFPB complaints, reshaped into a tidy working dataset.</figcaption>
+      </figure>
+  </div>
+</section>
+
+<section>
+  <h2>A first look at the numbers</h2>
+  <p>
+    Before running anything, I plotted each dataset to get a feel for its shape. This is the quiet step that ended up steering a lot of later decisions, especially
+    around skew and lopsided labels.
+  </p>
+  <p>
+    The German Credit borrowers skew young. The age histogram bunches up in the mid twenties through the late thirties and then thins out as age climbs, so older
+    borrowers are relatively uncommon here. Credit amounts sit in a low to moderate band for most people but trail off into a long tail of high value loans well above
+    the upper whisker of the boxplot, and the per month burden I engineered shows the same lopsidedness, with most borrowers carrying a modest payment and a small group
+    stretched much higher.
+  </p>
+  <div class="visuals">
+      <figure>
+        <img src="../assets/module01/german_age_histogram.png" alt="Histogram of borrower age in the German Credit dataset.">
+        <figcaption>Borrower age in German Credit, concentrated in younger adults.</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/module01/german_credit_amount_boxplot.png" alt="Boxplot of credit amount in the German Credit dataset.">
+        <figcaption>Credit amounts cluster low but trail into high value outliers.</figcaption>
+      </figure>
+  </div>
+  <p>
+    Lending Club is where the labels turn awkward. Current loans dominate the loan_status chart, Fully Paid sits a distant second, and the categories that actually
+    signal trouble, the various stages of late payment and Charged Off, barely register. That imbalance is a genuine problem to plan around, because a lazy model could
+    score well simply by guessing the majority class and never learning a thing about risk. I made a note of it here and it came back to bite, or at least to caution
+    me, in every classification module that followed.
+  </p>
+  <div class="visuals">
+      <figure>
+        <img src="../assets/module01/lending_status_distribution.png" alt="Bar chart of loan status categories in the Lending Club dataset.">
+        <figcaption>Loan status in Lending Club, heavily skewed toward Current.</figcaption>
+      </figure>
+  </div>
+  <p>
+    The complaint data rounded out the picture and kept it honest. Mortgage complaints across 2025 dip in February, climb through the year, and peak in December, and
+    they pile up overwhelmingly on conventional home mortgages, with FHA and VA mortgages trailing well behind. When I looked at what people were actually complaining
+    about, trouble during the payment process and simply struggling to pay the mortgage stood far above everything else, ahead of issues with applying, refinancing, or
+    closing. Those are not abstract buckets. They are the moment lending risk stops being a number in a table and turns into someone's bad month.
+  </p>
+  <div class="visuals">
+      <figure>
+        <img src="../assets/module01/cfpb_top_mortgage_issues.png" alt="Bar chart of the most common CFPB mortgage complaint issues.">
+        <figcaption>The most common mortgage complaints center on paying.</figcaption>
+      </figure>
+      <figure>
+        <img src="../assets/module01/cfpb_mortgage_complaints_by_month.png" alt="Line chart of CFPB mortgage complaint volume by month across 2025.">
+        <figcaption>Complaint volume by month, dipping in February and peaking in December.</figcaption>
+      </figure>
+  </div>
+</section>
+
+<section>
+  <h2>What this set up</h2>
+  <p>
+    By the end of the foundational work I had three cleaned datasets that each look at lending from a different angle, a clear sense of where the data was skewed or
+    imbalanced, and a question worth chasing. More than that, I had a project where every later result could be read two ways at once, as a machine learning outcome and
+    as something that means something about real borrowers and real lenders. Everything in the modules that follow is built on this base, and a surprising amount of
+    what shows up later, the weight of account status, the importance of monthly burden, the overlap between borrower types, was already hinted at right here in the raw
+    shapes of the data.
+  </p>
+</section>
+
+  </main>
+
+  <footer>
+    <p>Created by Richard Le for CS 432: Intro to Applied Machine Learning.</p>
+  </footer>
+</body>
+</html>
