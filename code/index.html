@@ -1,0 +1,3565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Code | Risk Signals in Consumer Lending</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="home-link" href="../index.html">Risk Signals in Consumer Lending</a>
+    <nav><a class="" href="../modules/module01.html">Module 1</a>
+<a class="" href="../modules/module02.html">Module 2</a>
+<a class="" href="../modules/module03.html">Module 3</a>
+<a class="" href="../modules/module04.html">Module 4</a>
+<a class="" href="../modules/module05.html">Module 5</a>
+<a class="" href="../modules/module06.html">Module 6</a>
+<a class="" href="../modules/module07.html">Module 7</a>
+<a class="" href="../modules/module08.html">Module 8</a>
+<a class="" href="../modules/module09.html">Module 9</a>
+<a class="" href="../modules/module10.html">Module 10</a>
+<a class="" href="../modules/module11.html">Module 11</a></nav>
+  </header>
+
+  <main class="page code-page">
+    <section class="page-hero">
+      <p class="eyebrow">CS 432 Project Journal</p>
+      <h1>Project Code</h1>
+      <p>The Python scripts behind every module, grouped the way the analysis actually ran. Expand any file to read it here, or download the raw script.</p>
+    </section>
+
+    <section>
+      <p class="intro">
+        Six scripts cover the whole project, from loading and cleaning the data through the unsupervised work and on to the classifiers and ensembles. Each one maps
+        onto the modules it produced, so you can read a module and then jump straight to the code that made it. The files are collapsed below to keep things tidy, so
+        click a name to open it.
+      </p>
+      <ul class="toc">
+      <li><a href="#file1">data_gathering_and_cleaning.py</a> <span class="meta">(153 lines)</span></li>
+      <li><a href="#file2">data_visualization.py</a> <span class="meta">(132 lines)</span></li>
+      <li><a href="#file3">clustering_and_pca.py</a> <span class="meta">(402 lines)</span></li>
+      <li><a href="#file4">linear_and_logistic_regression.py</a> <span class="meta">(519 lines)</span></li>
+      <li><a href="#file5">decision_tree_and_naive_bayes.py</a> <span class="meta">(1027 lines)</span></li>
+      <li><a href="#file6">svm_and_ensemble_classification.py</a> <span class="meta">(1229 lines)</span></li>
+      </ul>
+    </section>
+
+    <section>
+    <details id="file1">
+      <summary>data_gathering_and_cleaning.py <span class="meta">&mdash; Loads the German Credit, Lending Club, and CFPB complaint data and cleans each one, including the credit amount per month feature. Backs Module 1. (153 lines)</span></summary>
+      <p class="code-actions"><a href="data_gathering_and_cleaning.py" download>Download this file</a></p>
+      <pre><code>import pandas as pd
+import numpy as np
+import requests
+from io import StringIO
+
+german = pd.read_csv(&quot;../raw_data/german_credit_raw.csv&quot;)
+lending = pd.read_csv(&quot;../raw_data/lending_club_raw.csv&quot;)
+
+
+# ----- GERMAN CREDIT RISK ----
+
+# Initial checks
+# print(german.head())
+# print(german.info())
+# print(german.isnull().sum())
+# print(german.duplicated().sum())
+
+# Drop extra index column
+german = german.drop(columns=[&quot;Unnamed: 0&quot;])
+
+# Clean column names
+german.columns = (german.columns.str.strip().str.lower().str.replace(&quot; &quot;, &quot;_&quot;))
+
+# Clean text columns
+text_cols = [&quot;sex&quot;, &quot;housing&quot;, &quot;saving_accounts&quot;, &quot;checking_account&quot;, &quot;purpose&quot;]
+for col in text_cols:
+    german[col] = german[col].astype(&quot;string&quot;).str.strip().str.lower()
+
+# Fill missing categorical values
+german[&quot;saving_accounts&quot;] = german[&quot;saving_accounts&quot;].fillna(&quot;unknown&quot;)
+german[&quot;checking_account&quot;] = german[&quot;checking_account&quot;].fillna(&quot;unknown&quot;)
+
+# Treat job as categorical
+german[&quot;job&quot;] = german[&quot;job&quot;].astype(&quot;category&quot;)
+
+# Create a new quantitative feature
+german[&quot;credit_amount_per_month&quot;] = np.where(
+    german[&quot;duration&quot;] &gt; 0,
+    german[&quot;credit_amount&quot;] / german[&quot;duration&quot;],
+    np.nan
+)
+
+# Final checks
+print(german.head())
+print(german.info())
+print(german.isnull().sum())
+print(&quot;Duplicate rows:&quot;, german.duplicated().sum())
+
+# Save cleaned file
+german.to_csv(&quot;../cleaned_data/german_credit_cleaned.csv&quot;, index=False)
+
+
+# ----- LENDING CLUB ----
+
+# Initial checks
+# print(lending.head())
+# print(lending.info())
+# print(lending.isnull().sum().sort_values(ascending=False))
+# print(lending.duplicated().sum())
+
+# Keep useful columns for analysis
+columns_to_keep = [&quot;emp_title&quot;, &quot;emp_length&quot;, &quot;state&quot;, &quot;homeownership&quot;, &quot;annual_income&quot;, &quot;verified_income&quot;,
+                   &quot;debt_to_income&quot;, &quot;delinq_2y&quot;, &quot;inquiries_last_12m&quot;, &quot;total_credit_lines&quot;, &quot;open_credit_lines&quot;,
+                   &quot;total_credit_limit&quot;, &quot;total_credit_utilized&quot;, &quot;loan_purpose&quot;, &quot;application_type&quot;, &quot;loan_amount&quot;,
+                   &quot;term&quot;, &quot;interest_rate&quot;, &quot;installment&quot;, &quot;grade&quot;, &quot;sub_grade&quot;, &quot;issue_month&quot;, &quot;loan_status&quot;,
+                   &quot;balance&quot;, &quot;paid_total&quot;, &quot;paid_principal&quot;, &quot;paid_interest&quot;, &quot;paid_late_fees&quot;]
+lending = lending[columns_to_keep].copy()
+
+# Clean column names
+lending.columns = (lending.columns.str.strip().str.lower().str.replace(&quot; &quot;, &quot;_&quot;))
+
+# Fill missing job titles with &quot;unknown&quot;
+lending[&quot;emp_title&quot;] = lending[&quot;emp_title&quot;].fillna(&quot;unknown&quot;)
+
+# Fill missing emp_length with median
+lending[&quot;emp_length&quot;] = lending[&quot;emp_length&quot;].fillna(lending[&quot;emp_length&quot;].median())
+
+# Fill missing debt_to_income with median
+lending[&quot;debt_to_income&quot;] = lending[&quot;debt_to_income&quot;].fillna(lending[&quot;debt_to_income&quot;].median())
+
+# Final checks
+print(lending.head())
+print(lending.info())
+print(lending.isnull().sum().sort_values(ascending=False))
+print(&quot;Duplicate rows:&quot;, lending.duplicated().sum())
+
+# Save cleaned file
+lending.to_csv(&quot;../cleaned_data/lending_club_cleaned.csv&quot;, index=False)
+
+
+# ----- API: CFPB  -----
+# CFPB API URL
+api_url = (
+    &quot;https://www.consumerfinance.gov/data-research/consumer-complaints/search/api/v1/&quot;
+    &quot;?date_received_min=2025-01-01&quot;
+    &quot;&amp;date_received_max=2025-12-31&quot;
+    &quot;&amp;product=Mortgage&quot;
+    &quot;&amp;field=all&quot;
+    &quot;&amp;format=csv&quot;
+    &quot;&amp;no_aggs=true&quot;
+    &quot;&amp;size=5000&quot;
+    &quot;&amp;sort=created_date_desc&quot;
+)
+
+# Request raw API data
+response = requests.get(api_url)
+print(&quot;Status code:&quot;, response.status_code)
+print(response.text[:1500])
+
+# Save raw CSV
+with open(&quot;../raw_data/cfpb_raw.csv&quot;, &quot;w&quot;, encoding=&quot;utf-8&quot;) as f:
+    f.write(response.text)
+
+# Load into pandas
+cfpb = pd.read_csv(StringIO(response.text))
+
+# Keep useful columns
+columns_to_keep = [&quot;Date received&quot;, &quot;Product&quot;, &quot;Sub-product&quot;, &quot;Issue&quot;, &quot;Sub-issue&quot;, &quot;Company&quot;, &quot;State&quot;,
+                   &quot;Submitted via&quot;, &quot;Company response to consumer&quot;, &quot;Timely response?&quot;, &quot;Complaint ID&quot;]
+cfpb = cfpb[columns_to_keep].copy()
+
+# Clean column names
+cfpb.columns = (cfpb.columns.str.strip().str.lower().str.replace(&quot; &quot;, &quot;_&quot;).str.replace(&quot;?&quot;, &quot;&quot;, regex=False)
+                .str.replace(&quot;-&quot;, &quot;_&quot;))
+
+# Clean text fields
+text_cols = [&quot;product&quot;, &quot;sub_product&quot;, &quot;issue&quot;, &quot;sub_issue&quot;, &quot;company&quot;, &quot;state&quot;, &quot;submitted_via&quot;,
+             &quot;company_response_to_consumer&quot;, &quot;timely_response&quot;]
+for col in text_cols:
+    cfpb[col] = cfpb[col].astype(&quot;string&quot;).str.strip().str.lower()
+
+# Fill missing values
+cfpb[&quot;sub_product&quot;] = cfpb[&quot;sub_product&quot;].fillna(&quot;unknown&quot;)
+cfpb[&quot;sub_issue&quot;] = cfpb[&quot;sub_issue&quot;].fillna(&quot;unknown&quot;)
+cfpb[&quot;company_response_to_consumer&quot;] = cfpb[&quot;company_response_to_consumer&quot;].fillna(&quot;unknown&quot;)
+cfpb[&quot;state&quot;] = cfpb[&quot;state&quot;].fillna(&quot;unknown&quot;)
+cfpb[&quot;submitted_via&quot;] = cfpb[&quot;submitted_via&quot;].fillna(&quot;unknown&quot;)
+cfpb[&quot;timely_response&quot;] = cfpb[&quot;timely_response&quot;].fillna(&quot;unknown&quot;)
+
+# Convert date
+cfpb[&quot;date_received&quot;] = pd.to_datetime(cfpb[&quot;date_received&quot;], errors=&quot;coerce&quot;)
+
+# Remove duplicates
+cfpb = cfpb.drop_duplicates()
+
+# Final checks
+print(cfpb.head(10))
+print(cfpb.info())
+print(cfpb.isnull().sum().sort_values(ascending=False))
+print(&quot;Duplicate rows:&quot;, cfpb.duplicated().sum())
+
+# Save cleaned dataset
+cfpb.to_csv(&quot;../cleaned_data/cfpb_cleaned.csv&quot;, index=False)
+</code></pre>
+    </details>
+    <details id="file2">
+      <summary>data_visualization.py <span class="meta">&mdash; Builds the exploratory charts for all three datasets, the distributions, outliers, and complaint patterns. Backs Module 1. (132 lines)</span></summary>
+      <p class="code-actions"><a href="data_visualization.py" download>Download this file</a></p>
+      <pre><code>import pandas as pd
+import matplotlib.pyplot as plt
+
+# Load cleaned dataset
+german = pd.read_csv(&quot;../cleaned_data/german_credit_cleaned.csv&quot;)
+lending = pd.read_csv(&quot;../cleaned_data/lending_club_cleaned.csv&quot;)
+cfpb = pd.read_csv(&quot;../cleaned_data/cfpb_cleaned.csv&quot;)
+
+# ----- GERMAN CREDIT RISK ----
+
+# Visualization 1: Age Histogram
+plt.figure(figsize=(8, 5))
+plt.hist(german[&quot;age&quot;], bins=15, edgecolor=&quot;black&quot;)
+plt.title(&quot;Distribution of Borrower Age&quot;)
+plt.xlabel(&quot;Age&quot;)
+plt.ylabel(&quot;Frequency&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_age_histogram.png&quot;)
+plt.show()
+
+# Visualization 2: Credit Amount Boxplot
+plt.figure(figsize=(8, 5))
+plt.boxplot(german[&quot;credit_amount&quot;], vert=True)
+plt.title(&quot;Boxplot of Credit Amount&quot;)
+plt.ylabel(&quot;Credit Amount&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_credit_amount_boxplot.png&quot;)
+plt.show()
+
+# Visualization 3: Credit Amount Histogram
+plt.figure(figsize=(8, 5))
+plt.hist(german[&quot;credit_amount_per_month&quot;].dropna(), bins=20, edgecolor=&quot;black&quot;)
+plt.title(&quot;Distribution of Credit Amount Per Month&quot;)
+plt.xlabel(&quot;Credit Amount Per Month&quot;)
+plt.ylabel(&quot;Frequency&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_credit_amount_histogram.png&quot;)
+plt.show()
+
+
+# ----- LENDING CLUB ----
+
+# Visualization 1: Loan Status Distribution
+status_counts = lending[&quot;loan_status&quot;].value_counts()
+
+plt.figure(figsize=(10, 6))
+plt.bar(status_counts.index, status_counts.values)
+plt.title(&quot;Loan Status Distribution&quot;)
+plt.xlabel(&quot;Loan Status&quot;)
+plt.ylabel(&quot;Count&quot;)
+plt.xticks(rotation=45, ha=&quot;right&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_status_distribution.png&quot;)
+plt.show()
+
+# Visualization 2: Loan Amount by Loan Status
+top_statuses = lending[&quot;loan_status&quot;].value_counts().head(6).index
+lending_top = lending[lending[&quot;loan_status&quot;].isin(top_statuses)]
+
+grouped_loan_amount = [
+    lending_top[lending_top[&quot;loan_status&quot;] == status][&quot;loan_amount&quot;]
+    for status in top_statuses
+]
+
+plt.figure(figsize=(10, 6))
+plt.boxplot(grouped_loan_amount, labels=top_statuses)
+plt.title(&quot;Loan Amount by Loan Status&quot;)
+plt.xlabel(&quot;Loan Status&quot;)
+plt.ylabel(&quot;Loan Amount&quot;)
+plt.xticks(rotation=45, ha=&quot;right&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_amount_by_status.png&quot;)
+plt.show()
+
+# Visualization 3: Annual Income by Loan Status
+grouped_income = [
+    lending_top[lending_top[&quot;loan_status&quot;] == status][&quot;annual_income&quot;]
+    for status in top_statuses
+]
+
+plt.figure(figsize=(10, 6))
+plt.boxplot(grouped_income, labels=top_statuses)
+plt.title(&quot;Annual Income by Loan Status&quot;)
+plt.xlabel(&quot;Loan Status&quot;)
+plt.ylabel(&quot;Annual Income&quot;)
+plt.xticks(rotation=45, ha=&quot;right&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_income_or_dti_by_status.png&quot;)
+plt.show()
+
+
+# ----- CFPB ----
+# Convert date_received back to datetime
+cfpb[&quot;date_received&quot;] = pd.to_datetime(cfpb[&quot;date_received&quot;], format=&quot;%Y-%m-%d&quot;, errors=&quot;coerce&quot;)
+
+# Visualization 1: Mortgage Complaint Volume by Month
+cfpb[&quot;month&quot;] = cfpb[&quot;date_received&quot;].dt.to_period(&quot;M&quot;).astype(str)
+monthly_counts = cfpb[&quot;month&quot;].value_counts().sort_index()
+
+plt.figure(figsize=(10, 6))
+plt.plot(monthly_counts.index, monthly_counts.values, marker=&quot;o&quot;)
+plt.title(&quot;CFPB Mortgage Complaint Volume by Month&quot;)
+plt.xlabel(&quot;Month&quot;)
+plt.ylabel(&quot;Number of Complaints&quot;)
+plt.xticks(rotation=45, ha=&quot;right&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/cfpb_mortgage_complaints_by_month.png&quot;)
+plt.show()
+
+# Visualization 2: Mortgage Complaint Counts by Sub-Product
+subproduct_counts = cfpb[&quot;sub_product&quot;].value_counts().head(10).sort_values()
+
+plt.figure(figsize=(10, 6))
+plt.barh(subproduct_counts.index, subproduct_counts.values)
+plt.title(&quot;CFPB Mortgage Complaint Counts by Sub-Product&quot;)
+plt.xlabel(&quot;Count&quot;)
+plt.ylabel(&quot;Mortgage Sub-Product&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/cfpb_mortgage_subproduct_counts.png&quot;)
+plt.show()
+
+# Visualization 3: Top Mortgage Complaint Issues
+issue_counts = cfpb[&quot;issue&quot;].value_counts().head(10).sort_values()
+
+plt.figure(figsize=(10, 6))
+plt.barh(issue_counts.index, issue_counts.values)
+plt.title(&quot;Top Mortgage Complaint Issues in the CFPB Dataset&quot;)
+plt.xlabel(&quot;Count&quot;)
+plt.ylabel(&quot;Complaint Issue&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/cfpb_top_mortgage_issues.png&quot;)
+plt.show()
+</code></pre>
+    </details>
+    <details id="file3">
+      <summary>clustering_and_pca.py <span class="meta">&mdash; Runs KMeans without PCA, agglomerative hierarchical clustering, PCA, and KMeans on the reduced components. Backs Modules 2 and 3. (402 lines)</span></summary>
+      <p class="code-actions"><a href="clustering_and_pca.py" download>Download this file</a></p>
+      <pre><code>import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+from sklearn.cluster import AgglomerativeClustering
+from scipy.cluster.hierarchy import dendrogram, linkage
+
+# Load cleaned dataset
+lending = pd.read_csv(&quot;../cleaned_data/lending_club_cleaned.csv&quot;)
+
+
+# ----- KMEANS WITHOUT PCA: LENDING CLUB ----
+
+# Keep quantitative columns for KMeans
+columns_to_keep = [&quot;emp_length&quot;, &quot;annual_income&quot;, &quot;debt_to_income&quot;, &quot;delinq_2y&quot;, &quot;inquiries_last_12m&quot;,
+                   &quot;total_credit_lines&quot;, &quot;open_credit_lines&quot;, &quot;total_credit_limit&quot;, &quot;total_credit_utilized&quot;,
+                   &quot;loan_amount&quot;, &quot;term&quot;, &quot;interest_rate&quot;, &quot;installment&quot;]
+
+lending_kmeans = lending[columns_to_keep].copy()
+
+# Make sure all selected columns are numeric
+for col in columns_to_keep:
+    lending_kmeans[col] = pd.to_numeric(lending_kmeans[col], errors=&quot;coerce&quot;)
+
+# Replace missing values with median
+lending_kmeans = lending_kmeans.replace([np.inf, -np.inf], np.nan)
+lending_kmeans = lending_kmeans.fillna(lending_kmeans.median())
+
+# Scale the data
+scaler = StandardScaler()
+lending_scaled = scaler.fit_transform(lending_kmeans)
+
+# Convert scaled data back to dataframe
+lending_scaled = pd.DataFrame(lending_scaled, columns=columns_to_keep)
+
+# Final checks
+print(lending_scaled.head())
+print(lending_scaled.info())
+print(lending_scaled.isnull().sum())
+print(&quot;Duplicate rows:&quot;, lending_scaled.duplicated().sum())
+
+# Save prepared KMeans dataset
+lending_scaled.to_csv(&quot;../cleaned_data/lending_club_kmeans_no_pca_prepared.csv&quot;, index=False)
+
+# Kmeans without PCA: k = 2
+kmeans2 = KMeans(n_clusters=2, random_state=42, n_init=10)
+lending[&quot;cluster_k2&quot;] = kmeans2.fit_predict(lending_scaled)
+
+print(&quot;KMeans without PCA, k = 2&quot;)
+print(&quot;Inertia:&quot;, kmeans2.inertia_)
+print(lending[&quot;cluster_k2&quot;].value_counts().sort_index())
+
+print(pd.crosstab(lending[&quot;cluster_k2&quot;], lending[&quot;loan_status&quot;], normalize=&quot;index&quot;) * 100)
+
+cluster_profile_k2 = lending.groupby(&quot;cluster_k2&quot;)[columns_to_keep].mean().round(2)
+print(cluster_profile_k2)
+
+cluster_profile_k2.to_csv(&quot;../cleaned_data/lending_kmeans_no_pca_profile_k2.csv&quot;)
+
+centers_k2 = pd.DataFrame(kmeans2.cluster_centers_, columns=columns_to_keep)
+
+plt.figure(figsize=(12, 4))
+plt.imshow(centers_k2, aspect=&quot;auto&quot;)
+plt.colorbar(label=&quot;Standardized Value&quot;)
+plt.title(&quot;KMeans Without PCA Cluster Centers, k = 2&quot;)
+plt.xlabel(&quot;Variable&quot;)
+plt.ylabel(&quot;Cluster&quot;)
+plt.xticks(range(len(columns_to_keep)), columns_to_keep, rotation=45, ha=&quot;right&quot;)
+plt.yticks(range(2), [&quot;Cluster 0&quot;, &quot;Cluster 1&quot;])
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_kmeans_no_pca_k2_heatmap.png&quot;, dpi=200)
+plt.show()
+
+# Kmeans without PCA: k = 3
+kmeans3 = KMeans(n_clusters=3, random_state=42, n_init=10)
+lending[&quot;cluster_k3&quot;] = kmeans3.fit_predict(lending_scaled)
+
+print(&quot;KMeans without PCA, k = 3&quot;)
+print(&quot;Inertia:&quot;, kmeans3.inertia_)
+print(lending[&quot;cluster_k3&quot;].value_counts().sort_index())
+
+print(pd.crosstab(lending[&quot;cluster_k3&quot;], lending[&quot;loan_status&quot;], normalize=&quot;index&quot;) * 100)
+
+cluster_profile_k3 = lending.groupby(&quot;cluster_k3&quot;)[columns_to_keep].mean().round(2)
+print(cluster_profile_k3)
+
+cluster_profile_k3.to_csv(&quot;../cleaned_data/lending_kmeans_no_pca_profile_k3.csv&quot;)
+
+centers_k3 = pd.DataFrame(kmeans3.cluster_centers_, columns=columns_to_keep)
+
+plt.figure(figsize=(12, 4))
+plt.imshow(centers_k3, aspect=&quot;auto&quot;)
+plt.colorbar(label=&quot;Standardized Value&quot;)
+plt.title(&quot;KMeans Without PCA Cluster Centers, k = 3&quot;)
+plt.xlabel(&quot;Variable&quot;)
+plt.ylabel(&quot;Cluster&quot;)
+plt.xticks(range(len(columns_to_keep)), columns_to_keep, rotation=45, ha=&quot;right&quot;)
+plt.yticks(range(3), [&quot;Cluster 0&quot;, &quot;Cluster 1&quot;, &quot;Cluster 2&quot;])
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_kmeans_no_pca_k3_heatmap.png&quot;, dpi=200)
+plt.show()
+
+
+# Kmeans without PCA: k = 4
+kmeans4 = KMeans(n_clusters=4, random_state=42, n_init=10)
+lending[&quot;cluster_k4&quot;] = kmeans4.fit_predict(lending_scaled)
+
+print(&quot;KMeans without PCA, k = 4&quot;)
+print(&quot;Inertia:&quot;, kmeans4.inertia_)
+print(lending[&quot;cluster_k4&quot;].value_counts().sort_index())
+
+print(pd.crosstab(lending[&quot;cluster_k4&quot;], lending[&quot;loan_status&quot;], normalize=&quot;index&quot;) * 100)
+
+cluster_profile_k4 = lending.groupby(&quot;cluster_k4&quot;)[columns_to_keep].mean().round(2)
+print(cluster_profile_k4)
+
+cluster_profile_k4.to_csv(&quot;../cleaned_data/lending_kmeans_no_pca_profile_k4.csv&quot;)
+
+centers_k4 = pd.DataFrame(kmeans4.cluster_centers_, columns=columns_to_keep)
+
+plt.figure(figsize=(12, 4))
+plt.imshow(centers_k4, aspect=&quot;auto&quot;)
+plt.colorbar(label=&quot;Standardized Value&quot;)
+plt.title(&quot;KMeans Without PCA Cluster Centers, k = 4&quot;)
+plt.xlabel(&quot;Variable&quot;)
+plt.ylabel(&quot;Cluster&quot;)
+plt.xticks(range(len(columns_to_keep)), columns_to_keep, rotation=45, ha=&quot;right&quot;)
+plt.yticks(range(4), [&quot;Cluster 0&quot;, &quot;Cluster 1&quot;, &quot;Cluster 2&quot;, &quot;Cluster 3&quot;])
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_kmeans_no_pca_k4_heatmap.png&quot;, dpi=200)
+plt.show()
+
+# Compare k values
+inertia = pd.DataFrame({
+    &quot;k&quot;: [2, 3, 4],
+    &quot;inertia&quot;: [kmeans2.inertia_, kmeans3.inertia_, kmeans4.inertia_]
+})
+
+print(inertia)
+
+plt.figure(figsize=(8, 5))
+plt.plot(inertia[&quot;k&quot;], inertia[&quot;inertia&quot;], marker=&quot;o&quot;)
+plt.title(&quot;KMeans Without PCA Inertia Comparison&quot;)
+plt.xlabel(&quot;Number of Clusters&quot;)
+plt.ylabel(&quot;Inertia&quot;)
+plt.xticks([2, 3, 4])
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_kmeans_no_pca_inertia.png&quot;, dpi=200)
+plt.show()
+
+# Save Lending Club dataset with cluster labels
+lending.to_csv(&quot;../cleaned_data/lending_club_kmeans_no_pca_clusters.csv&quot;, index=False)
+
+
+# Create inertia comparison table
+comparison = pd.DataFrame({
+    &quot;k&quot;: [2, 3, 4],
+    &quot;inertia&quot;: [kmeans2.inertia_, kmeans3.inertia_, kmeans4.inertia_],
+    &quot;cluster_counts&quot;: [
+        lending[&quot;cluster_k2&quot;].value_counts().sort_index().to_dict(),
+        lending[&quot;cluster_k3&quot;].value_counts().sort_index().to_dict(),
+        lending[&quot;cluster_k4&quot;].value_counts().sort_index().to_dict()
+    ]
+})
+
+comparison[&quot;inertia&quot;] = comparison[&quot;inertia&quot;].round(2)
+
+print(comparison)
+
+comparison.to_csv(&quot;../cleaned_data/lending_kmeans_no_pca_comparison.csv&quot;, index=False)
+
+# Create image of comparison table
+comparison_preview = comparison.copy()
+comparison_preview[&quot;cluster_counts&quot;] = comparison_preview[&quot;cluster_counts&quot;].astype(str)
+
+plt.figure(figsize=(10, 2))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=comparison_preview.values,
+          colLabels=comparison_preview.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;KMeans Without PCA Numeric Comparison&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_kmeans_no_pca_numeric_comparison.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- KMEANS USING PCA: LENDING CLUB ----
+
+# Reduce the same scaled KMeans data to 3 principal components
+pca = PCA(n_components=3)
+lending_pca = pca.fit_transform(lending_scaled)
+
+# Convert PCA data back to dataframe
+lending_pca = pd.DataFrame(lending_pca, columns=[&quot;pc1&quot;, &quot;pc2&quot;, &quot;pc3&quot;])
+
+# Final checks
+print(lending_pca.head())
+print(lending_pca.info())
+print(lending_pca.isnull().sum())
+print(&quot;Duplicate rows:&quot;, lending_pca.duplicated().sum())
+
+# Explained variance
+explained_variance = pd.DataFrame({
+    &quot;component&quot;: [&quot;pc1&quot;, &quot;pc2&quot;, &quot;pc3&quot;],
+    &quot;explained_variance_ratio&quot;: pca.explained_variance_ratio_
+})
+
+explained_variance[&quot;explained_variance_ratio&quot;] = explained_variance[&quot;explained_variance_ratio&quot;].round(4)
+
+print(explained_variance)
+print(&quot;Total explained variance:&quot;, round(pca.explained_variance_ratio_.sum(), 4))
+
+# Save PCA prepared dataset
+lending_pca.to_csv(&quot;../cleaned_data/lending_club_pca_3d_prepared.csv&quot;, index=False)
+explained_variance.to_csv(&quot;../cleaned_data/lending_club_pca_explained_variance.csv&quot;, index=False)
+
+# Kmeans using PCA: k = 2
+kmeans_pca2 = KMeans(n_clusters=2, random_state=42, n_init=10)
+lending[&quot;pca_cluster_k2&quot;] = kmeans_pca2.fit_predict(lending_pca)
+
+print(&quot;KMeans using PCA, k = 2&quot;)
+print(&quot;Inertia:&quot;, kmeans_pca2.inertia_)
+print(lending[&quot;pca_cluster_k2&quot;].value_counts().sort_index())
+
+print(pd.crosstab(lending[&quot;pca_cluster_k2&quot;], lending[&quot;loan_status&quot;], normalize=&quot;index&quot;) * 100)
+
+pca_profile_k2 = lending.groupby(&quot;pca_cluster_k2&quot;)[columns_to_keep].mean().round(2)
+print(pca_profile_k2)
+
+pca_profile_k2.to_csv(&quot;../cleaned_data/lending_kmeans_pca_profile_k2.csv&quot;)
+
+
+# Kmeans using PCA: k = 3
+kmeans_pca3 = KMeans(n_clusters=3, random_state=42, n_init=10)
+lending[&quot;pca_cluster_k3&quot;] = kmeans_pca3.fit_predict(lending_pca)
+
+print(&quot;KMeans using PCA, k = 3&quot;)
+print(&quot;Inertia:&quot;, kmeans_pca3.inertia_)
+print(lending[&quot;pca_cluster_k3&quot;].value_counts().sort_index())
+
+print(pd.crosstab(lending[&quot;pca_cluster_k3&quot;], lending[&quot;loan_status&quot;], normalize=&quot;index&quot;) * 100)
+
+pca_profile_k3 = lending.groupby(&quot;pca_cluster_k3&quot;)[columns_to_keep].mean().round(2)
+print(pca_profile_k3)
+
+pca_profile_k3.to_csv(&quot;../cleaned_data/lending_kmeans_pca_profile_k3.csv&quot;)
+
+
+# Kmeans using PCA: k = 4
+kmeans_pca4 = KMeans(n_clusters=4, random_state=42, n_init=10)
+lending[&quot;pca_cluster_k4&quot;] = kmeans_pca4.fit_predict(lending_pca)
+
+print(&quot;KMeans using PCA, k = 4&quot;)
+print(&quot;Inertia:&quot;, kmeans_pca4.inertia_)
+print(lending[&quot;pca_cluster_k4&quot;].value_counts().sort_index())
+
+print(pd.crosstab(lending[&quot;pca_cluster_k4&quot;], lending[&quot;loan_status&quot;], normalize=&quot;index&quot;) * 100)
+
+pca_profile_k4 = lending.groupby(&quot;pca_cluster_k4&quot;)[columns_to_keep].mean().round(2)
+print(pca_profile_k4)
+
+pca_profile_k4.to_csv(&quot;../cleaned_data/lending_kmeans_pca_profile_k4.csv&quot;)
+
+
+# Compare PCA k values
+pca_inertia = pd.DataFrame({
+    &quot;k&quot;: [2, 3, 4],
+    &quot;inertia&quot;: [kmeans_pca2.inertia_, kmeans_pca3.inertia_, kmeans_pca4.inertia_]
+})
+
+print(pca_inertia)
+
+plt.figure(figsize=(8, 5))
+plt.plot(pca_inertia[&quot;k&quot;], pca_inertia[&quot;inertia&quot;], marker=&quot;o&quot;)
+plt.title(&quot;KMeans Using PCA Inertia Comparison&quot;)
+plt.xlabel(&quot;Number of Clusters&quot;)
+plt.ylabel(&quot;Inertia&quot;)
+plt.xticks([2, 3, 4])
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_kmeans_pca_inertia.png&quot;, dpi=200)
+plt.show()
+
+
+# Create inertia comparison table
+pca_comparison = pd.DataFrame({
+    &quot;k&quot;: [2, 3, 4],
+    &quot;inertia&quot;: [kmeans_pca2.inertia_, kmeans_pca3.inertia_, kmeans_pca4.inertia_],
+    &quot;cluster_counts&quot;: [
+        lending[&quot;pca_cluster_k2&quot;].value_counts().sort_index().to_dict(),
+        lending[&quot;pca_cluster_k3&quot;].value_counts().sort_index().to_dict(),
+        lending[&quot;pca_cluster_k4&quot;].value_counts().sort_index().to_dict()
+    ]
+})
+
+pca_comparison[&quot;inertia&quot;] = pca_comparison[&quot;inertia&quot;].round(2)
+
+print(pca_comparison)
+
+pca_comparison.to_csv(&quot;../cleaned_data/lending_kmeans_pca_comparison.csv&quot;, index=False)
+
+# Create image of comparison table
+pca_comparison_preview = pca_comparison.copy()
+pca_comparison_preview[&quot;cluster_counts&quot;] = pca_comparison_preview[&quot;cluster_counts&quot;].astype(str)
+
+plt.figure(figsize=(10, 2))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=pca_comparison_preview.values,
+          colLabels=pca_comparison_preview.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;KMeans Using PCA Numeric Comparison&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_kmeans_pca_numeric_comparison.png&quot;, dpi=200)
+plt.show()
+
+
+# 3D visualization for k = 3
+fig = plt.figure(figsize=(10, 7))
+ax = fig.add_subplot(111, projection=&quot;3d&quot;)
+
+scatter = ax.scatter(lending_pca[&quot;pc1&quot;],
+                     lending_pca[&quot;pc2&quot;],
+                     lending_pca[&quot;pc3&quot;],
+                     c=lending[&quot;pca_cluster_k3&quot;],
+                     s=15,
+                     alpha=0.6)
+
+ax.set_title(&quot;KMeans Using PCA 3D Clustering, k = 3&quot;)
+ax.set_xlabel(&quot;PC1&quot;)
+ax.set_ylabel(&quot;PC2&quot;)
+ax.set_zlabel(&quot;PC3&quot;)
+
+plt.colorbar(scatter, ax=ax, label=&quot;Cluster&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_kmeans_pca_k3_3d.png&quot;, dpi=200)
+plt.show()
+
+# Save Lending Club dataset with PCA cluster labels
+lending.to_csv(&quot;../cleaned_data/lending_club_kmeans_pca_clusters.csv&quot;, index=False)
+
+
+# ----- AGGLOMERATIVE HIERARCHICAL CLUSTERING ----
+
+# Use a sample of the prepared data
+lending_sample_scaled = lending_scaled.sample(n=500, random_state=42)
+lending_sample = lending.loc[lending_sample_scaled.index].copy()
+
+# Perform Agglomerative Clustering using Sklearn
+agg = AgglomerativeClustering(n_clusters=3, linkage=&quot;ward&quot;)
+lending_sample[&quot;agg_cluster&quot;] = agg.fit_predict(lending_sample_scaled)
+
+# Final checks
+print(lending_sample_scaled.head())
+print(lending_sample_scaled.info())
+print(lending_sample_scaled.isnull().sum())
+print(&quot;Duplicate rows:&quot;, lending_sample_scaled.duplicated().sum())
+
+print(&quot;Agglomerative Hierarchical Clustering, k = 3&quot;)
+print(lending_sample[&quot;agg_cluster&quot;].value_counts().sort_index())
+
+print(pd.crosstab(lending_sample[&quot;agg_cluster&quot;], lending_sample[&quot;loan_status&quot;], normalize=&quot;index&quot;) * 100)
+
+agg_profile = lending_sample.groupby(&quot;agg_cluster&quot;)[columns_to_keep].mean().round(2)
+print(agg_profile)
+
+# Save Agglomerative results
+agg_profile.to_csv(&quot;../cleaned_data/lending_agglomerative_profile.csv&quot;)
+lending_sample.to_csv(&quot;../cleaned_data/lending_agglomerative_sample_clusters.csv&quot;, index=False)
+
+# Create dendrogram using Python
+linked = linkage(lending_sample_scaled.to_numpy(), method=&quot;ward&quot;)
+
+plt.figure(figsize=(12, 6))
+dendrogram(linked, truncate_mode=&quot;lastp&quot;, p=30)
+plt.title(&quot;Agglomerative Hierarchical Clustering Dendrogram&quot;)
+plt.xlabel(&quot;Cluster Group&quot;)
+plt.ylabel(&quot;Distance&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_agglomerative_dendrogram.png&quot;, dpi=200)
+plt.show()
+
+# Create cluster profile heatmap
+agg_centers = lending_sample.groupby(&quot;agg_cluster&quot;)[columns_to_keep].mean()
+
+agg_centers_scaled = pd.DataFrame(
+    scaler.transform(agg_centers),
+    columns=columns_to_keep,
+    index=agg_centers.index
+)
+
+plt.figure(figsize=(12, 4))
+plt.imshow(agg_centers_scaled, aspect=&quot;auto&quot;)
+plt.colorbar(label=&quot;Standardized Value&quot;)
+plt.title(&quot;Agglomerative Clustering Cluster Profiles, k = 3&quot;)
+plt.xlabel(&quot;Variable&quot;)
+plt.ylabel(&quot;Cluster&quot;)
+plt.xticks(range(len(columns_to_keep)), columns_to_keep, rotation=45, ha=&quot;right&quot;)
+plt.yticks(range(3), [&quot;Cluster 0&quot;, &quot;Cluster 1&quot;, &quot;Cluster 2&quot;])
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_agglomerative_cluster_profiles.png&quot;, dpi=200)
+plt.show()
+</code></pre>
+    </details>
+    <details id="file4">
+      <summary>linear_and_logistic_regression.py <span class="meta">&mdash; Fits the installment regression on Lending Club and the credit risk logistic model on German Credit. Backs Modules 4 and 5. (519 lines)</span></summary>
+      <p class="code-actions"><a href="linear_and_logistic_regression.py" download>Download this file</a></p>
+      <pre><code>import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.metrics import (mean_absolute_error, mean_squared_error, r2_score, accuracy_score, precision_score,
+                             recall_score, f1_score, roc_auc_score, confusion_matrix, RocCurveDisplay)
+from sklearn.preprocessing import StandardScaler
+
+
+# Load cleaned dataset
+lending = pd.read_csv(&quot;../cleaned_data/lending_club_cleaned.csv&quot;)
+german = pd.read_csv(&quot;../cleaned_data/german_credit_cleaned.csv&quot;)
+
+
+# ----- LINEAR REGRESSION: LENDING CLUB ----
+
+# Keep quantitative columns for Linear Regression
+columns_to_keep = [&quot;annual_income&quot;, &quot;debt_to_income&quot;, &quot;delinq_2y&quot;, &quot;inquiries_last_12m&quot;,
+                   &quot;total_credit_lines&quot;, &quot;open_credit_lines&quot;, &quot;total_credit_limit&quot;,
+                   &quot;total_credit_utilized&quot;, &quot;loan_amount&quot;, &quot;term&quot;, &quot;interest_rate&quot;,
+                   &quot;installment&quot;]
+
+lending_linear = lending[columns_to_keep].copy()
+
+# Make sure all selected columns are numeric
+for col in columns_to_keep:
+    lending_linear[col] = pd.to_numeric(lending_linear[col], errors=&quot;coerce&quot;)
+
+# Replace missing values with median
+lending_linear = lending_linear.replace([np.inf, -np.inf], np.nan)
+lending_linear = lending_linear.fillna(lending_linear.median())
+
+# Final checks
+print(lending_linear.head())
+print(lending_linear.info())
+print(lending_linear.isnull().sum())
+print(&quot;Duplicate rows:&quot;, lending_linear.duplicated().sum())
+
+# Save prepared Linear Regression dataset
+lending_linear.to_csv(&quot;../cleaned_data/lending_linear_regression_prepared.csv&quot;, index=False)
+
+# Set independent variables and dependent variable
+x = lending_linear.drop(columns=[&quot;installment&quot;])
+y = lending_linear[&quot;installment&quot;]
+
+# Split data into training and testing data
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.30, random_state=42)
+
+print(&quot;Training data shape:&quot;, x_train.shape)
+print(&quot;Testing data shape:&quot;, x_test.shape)
+
+# Run Linear Regression
+linear_model = LinearRegression()
+linear_model.fit(x_train, y_train)
+
+# Make predictions
+y_train_pred = linear_model.predict(x_train)
+y_test_pred = linear_model.predict(x_test)
+
+# Get model equation values
+intercept = linear_model.intercept_
+
+coefficients = pd.DataFrame({
+    &quot;variable&quot;: x.columns,
+    &quot;coefficient&quot;: linear_model.coef_
+})
+
+coefficients[&quot;coefficient&quot;] = coefficients[&quot;coefficient&quot;].round(6)
+
+print(&quot;Intercept:&quot;, round(intercept, 6))
+print(coefficients)
+
+# Save equation values
+coefficients.to_csv(&quot;../cleaned_data/lending_linear_regression_coefficients.csv&quot;, index=False)
+
+# Get model results
+training_r2 = r2_score(y_train, y_train_pred)
+testing_r2 = r2_score(y_test, y_test_pred)
+mae = mean_absolute_error(y_test, y_test_pred)
+rmse = mean_squared_error(y_test, y_test_pred) ** 0.5
+
+linear_results = pd.DataFrame({
+    &quot;metric&quot;: [&quot;training_r2&quot;, &quot;testing_r2&quot;, &quot;mean_absolute_error&quot;, &quot;root_mean_squared_error&quot;],
+    &quot;value&quot;: [training_r2, testing_r2, mae, rmse]
+})
+
+linear_results[&quot;value&quot;] = linear_results[&quot;value&quot;].round(4)
+
+print(linear_results)
+
+# Save model results
+linear_results.to_csv(&quot;../cleaned_data/lending_linear_regression_results.csv&quot;, index=False)
+
+# Create image of model results
+plt.figure(figsize=(8, 2.5))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=linear_results.values,
+          colLabels=linear_results.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;Linear Regression Model Results&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_linear_regression_results_table.png&quot;, dpi=200)
+plt.show()
+
+# Actual vs predicted installment
+plt.figure(figsize=(8, 6))
+plt.scatter(y_test, y_test_pred, alpha=0.5)
+
+min_value = min(y_test.min(), y_test_pred.min())
+max_value = max(y_test.max(), y_test_pred.max())
+
+plt.plot([min_value, max_value], [min_value, max_value], linestyle=&quot;--&quot;, color=&quot;red&quot;)
+plt.title(&quot;Actual vs Predicted Installment&quot;)
+plt.xlabel(&quot;Actual Installment&quot;)
+plt.ylabel(&quot;Predicted Installment&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_linear_regression_actual_vs_predicted.png&quot;, dpi=200)
+plt.show()
+
+# Residuals
+residuals = y_test - y_test_pred
+
+plt.figure(figsize=(8, 5))
+plt.hist(residuals, bins=30, edgecolor=&quot;black&quot;)
+plt.title(&quot;Linear Regression Residuals&quot;)
+plt.xlabel(&quot;Actual Installment - Predicted Installment&quot;)
+plt.ylabel(&quot;Frequency&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_linear_regression_residuals.png&quot;, dpi=200)
+plt.show()
+
+# Save predictions
+linear_predictions = x_test.copy()
+linear_predictions[&quot;actual_installment&quot;] = y_test
+linear_predictions[&quot;predicted_installment&quot;] = y_test_pred
+linear_predictions[&quot;residual&quot;] = residuals
+
+linear_predictions.to_csv(&quot;../cleaned_data/lending_linear_regression_predictions.csv&quot;, index=False)
+
+# Example calculation
+example = x_test.iloc[[0]].copy()
+example_actual = y_test.iloc[0]
+example_prediction = linear_model.predict(example)[0]
+
+example_calculation = pd.DataFrame({
+    &quot;variable&quot;: x.columns,
+    &quot;coefficient&quot;: linear_model.coef_,
+    &quot;example_value&quot;: example.iloc[0].values,
+    &quot;coefficient_times_value&quot;: linear_model.coef_ * example.iloc[0].values
+})
+
+intercept_row = pd.DataFrame({
+    &quot;variable&quot;: [&quot;intercept&quot;],
+    &quot;coefficient&quot;: [intercept],
+    &quot;example_value&quot;: [1],
+    &quot;coefficient_times_value&quot;: [intercept]
+})
+
+example_calculation = pd.concat([intercept_row, example_calculation], ignore_index=True)
+example_calculation = example_calculation.round(4)
+
+print(&quot;Example actual installment:&quot;, round(example_actual, 2))
+print(&quot;Example predicted installment:&quot;, round(example_prediction, 2))
+print(example_calculation)
+print(&quot;Manual prediction check:&quot;, round(example_calculation[&quot;coefficient_times_value&quot;].sum(), 2))
+
+# Save example calculation
+example_calculation.to_csv(&quot;../cleaned_data/lending_linear_regression_example_calculation.csv&quot;, index=False)
+
+# Create image of example calculation
+plt.figure(figsize=(12, 5))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=example_calculation.values,
+          colLabels=example_calculation.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;Linear Regression Example Calculation&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_linear_regression_example_calculation.png&quot;, dpi=200)
+plt.show()
+
+# ----- SUPPLEMENTAL LINEAR REGRESSION ANALYSIS -----
+
+# Correlation of each variable with installment
+installment_correlations = lending_linear.corr(numeric_only=True)[&quot;installment&quot;].drop(&quot;installment&quot;).sort_values()
+
+print(installment_correlations)
+
+installment_correlations.to_csv(&quot;../cleaned_data/lending_installment_correlations.csv&quot;)
+
+plt.figure(figsize=(9, 6))
+plt.barh(installment_correlations.index, installment_correlations.values)
+plt.title(&quot;Correlation of Lending Club Variables with Installment&quot;)
+plt.xlabel(&quot;Correlation with Installment&quot;)
+plt.ylabel(&quot;Variable&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_installment_correlations.png&quot;, dpi=200)
+plt.show()
+
+
+# Residuals vs predicted installment
+plt.figure(figsize=(8, 5))
+plt.scatter(y_test_pred, residuals, alpha=0.5)
+plt.axhline(0, linestyle=&quot;--&quot;, color=&quot;red&quot;)
+plt.title(&quot;Residuals vs Predicted Installment&quot;)
+plt.xlabel(&quot;Predicted Installment&quot;)
+plt.ylabel(&quot;Residual&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_linear_regression_residuals_vs_predicted.png&quot;, dpi=200)
+plt.show()
+
+
+# Compare full model with a simpler loan-structure model
+core_columns = [&quot;loan_amount&quot;, &quot;term&quot;, &quot;interest_rate&quot;]
+
+x_core = lending_linear[core_columns]
+y_core = lending_linear[&quot;installment&quot;]
+
+x_core_train, x_core_test, y_core_train, y_core_test = train_test_split(
+    x_core, y_core, test_size=0.30, random_state=42
+)
+
+core_model = LinearRegression()
+core_model.fit(x_core_train, y_core_train)
+
+y_core_test_pred = core_model.predict(x_core_test)
+
+core_results = pd.DataFrame({
+    &quot;model&quot;: [&quot;full_model&quot;, &quot;core_loan_model&quot;],
+    &quot;testing_r2&quot;: [
+        r2_score(y_test, y_test_pred),
+        r2_score(y_core_test, y_core_test_pred)
+    ],
+    &quot;mean_absolute_error&quot;: [
+        mean_absolute_error(y_test, y_test_pred),
+        mean_absolute_error(y_core_test, y_core_test_pred)
+    ],
+    &quot;root_mean_squared_error&quot;: [
+        mean_squared_error(y_test, y_test_pred) ** 0.5,
+        mean_squared_error(y_core_test, y_core_test_pred) ** 0.5
+    ]
+})
+
+core_results = core_results.round(4)
+
+print(core_results)
+
+core_results.to_csv(&quot;../cleaned_data/lending_linear_regression_model_comparison.csv&quot;, index=False)
+
+plt.figure(figsize=(10, 2.5))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=core_results.values,
+          colLabels=core_results.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;Linear Regression Model Comparison&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/lending_linear_regression_model_comparison.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- LOGISTIC REGRESSION: GERMAN CREDIT -----
+
+# Keep useful columns for Logistic Regression
+numeric_columns = [&quot;age&quot;, &quot;credit_amount&quot;, &quot;duration&quot;, &quot;credit_amount_per_month&quot;]
+categorical_columns = [&quot;sex&quot;, &quot;job&quot;, &quot;housing&quot;, &quot;saving_accounts&quot;, &quot;checking_account&quot;]
+
+columns_to_keep = numeric_columns + categorical_columns + [&quot;credit_risk&quot;]
+
+german_logistic = german[columns_to_keep].copy()
+
+# Create binary label
+# credit_risk = 1 stays 0 for lower risk
+# credit_risk = 2 becomes 1 for higher risk
+german_logistic[&quot;bad_credit&quot;] = np.where(german_logistic[&quot;credit_risk&quot;] == 2, 1, 0)
+
+# Make sure numeric columns are numeric
+for col in numeric_columns:
+    german_logistic[col] = pd.to_numeric(german_logistic[col], errors=&quot;coerce&quot;)
+
+# Replace missing values
+german_logistic[numeric_columns] = german_logistic[numeric_columns].replace([np.inf, -np.inf], np.nan)
+german_logistic[numeric_columns] = german_logistic[numeric_columns].fillna(german_logistic[numeric_columns].median())
+
+for col in categorical_columns:
+    german_logistic[col] = german_logistic[col].fillna(&quot;unknown&quot;)
+
+# Convert categorical variables into dummy columns
+x = german_logistic[numeric_columns + categorical_columns].copy()
+x = pd.get_dummies(x, columns=categorical_columns, drop_first=True)
+
+# Convert boolean dummy columns to integers
+dummy_columns = x.select_dtypes(include=&quot;bool&quot;).columns
+x[dummy_columns] = x[dummy_columns].astype(int)
+
+y = german_logistic[&quot;bad_credit&quot;]
+
+# Final checks
+prepared_logistic = x.copy()
+prepared_logistic[&quot;bad_credit&quot;] = y.values
+
+print(prepared_logistic.head())
+print(prepared_logistic.info())
+print(prepared_logistic.isnull().sum())
+print(&quot;Duplicate rows:&quot;, prepared_logistic.duplicated().sum())
+
+# Save prepared Logistic Regression dataset
+prepared_logistic.to_csv(&quot;../cleaned_data/german_logistic_regression_prepared.csv&quot;, index=False)
+
+
+# Class distribution
+class_counts = german_logistic[&quot;bad_credit&quot;].value_counts().sort_index()
+
+plt.figure(figsize=(8, 5))
+plt.bar([&quot;Lower Risk&quot;, &quot;Higher Risk&quot;], class_counts.values)
+plt.title(&quot;German Credit Risk Distribution for Logistic Regression&quot;)
+plt.xlabel(&quot;Credit Risk Group&quot;)
+plt.ylabel(&quot;Count&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_logistic_regression_class_distribution.png&quot;, dpi=200)
+plt.show()
+
+
+# Split data into training and testing data
+x_train, x_test, y_train, y_test = train_test_split(
+    x, y, test_size=0.30, random_state=42, stratify=y
+)
+
+print(&quot;Training data shape:&quot;, x_train.shape)
+print(&quot;Testing data shape:&quot;, x_test.shape)
+
+# Scale the data
+scaler = StandardScaler()
+
+x_train_scaled = pd.DataFrame(
+    scaler.fit_transform(x_train),
+    columns=x_train.columns,
+    index=x_train.index
+)
+
+x_test_scaled = pd.DataFrame(
+    scaler.transform(x_test),
+    columns=x_test.columns,
+    index=x_test.index
+)
+
+# Run Logistic Regression
+logistic_model = LogisticRegression(max_iter=2000, solver=&quot;liblinear&quot;, class_weight=&quot;balanced&quot;)
+logistic_model.fit(x_train_scaled, y_train)
+
+# Make predictions
+y_test_pred = logistic_model.predict(x_test_scaled)
+y_test_prob = logistic_model.predict_proba(x_test_scaled)[:, 1]
+
+# Save predictions
+logistic_predictions = x_test.copy()
+logistic_predictions[&quot;actual_bad_credit&quot;] = y_test
+logistic_predictions[&quot;predicted_bad_credit&quot;] = y_test_pred
+logistic_predictions[&quot;predicted_probability&quot;] = y_test_prob
+
+logistic_predictions.to_csv(&quot;../cleaned_data/german_logistic_regression_predictions.csv&quot;, index=False)
+
+# Get model equation values
+intercept = logistic_model.intercept_[0]
+
+coefficients = pd.DataFrame({
+    &quot;variable&quot;: x.columns,
+    &quot;coefficient&quot;: logistic_model.coef_[0],
+    &quot;odds_ratio&quot;: np.exp(logistic_model.coef_[0])
+})
+
+coefficients[&quot;coefficient&quot;] = coefficients[&quot;coefficient&quot;].round(6)
+coefficients[&quot;odds_ratio&quot;] = coefficients[&quot;odds_ratio&quot;].round(6)
+
+print(&quot;Intercept:&quot;, round(intercept, 6))
+print(coefficients)
+
+# Save coefficients
+coefficients.to_csv(&quot;../cleaned_data/german_logistic_regression_coefficients.csv&quot;, index=False)
+
+# Create image of coefficients
+plt.figure(figsize=(12, 4))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=coefficients.values,
+          colLabels=coefficients.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;German Credit Logistic Regression Coefficients and Odds Ratios&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_logistic_regression_coefficients.png&quot;, dpi=200)
+plt.show()
+
+
+# Model results
+logistic_results = pd.DataFrame({
+    &quot;metric&quot;: [&quot;accuracy&quot;, &quot;precision&quot;, &quot;recall&quot;, &quot;f1_score&quot;, &quot;roc_auc&quot;],
+    &quot;value&quot;: [
+        accuracy_score(y_test, y_test_pred),
+        precision_score(y_test, y_test_pred),
+        recall_score(y_test, y_test_pred),
+        f1_score(y_test, y_test_pred),
+        roc_auc_score(y_test, y_test_prob)
+    ]
+})
+
+logistic_results[&quot;value&quot;] = logistic_results[&quot;value&quot;].round(4)
+
+print(logistic_results)
+
+# Save model results
+logistic_results.to_csv(&quot;../cleaned_data/german_logistic_regression_results.csv&quot;, index=False)
+
+# Create image of results
+plt.figure(figsize=(8, 2.5))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=logistic_results.values,
+          colLabels=logistic_results.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;German Credit Logistic Regression Model Results&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_logistic_regression_results_table.png&quot;, dpi=200)
+plt.show()
+
+
+# Confusion matrix
+cm = confusion_matrix(y_test, y_test_pred)
+
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm, annot=True, fmt=&quot;d&quot;, cmap=&quot;Blues&quot;,
+            xticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;],
+            yticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;])
+plt.title(&quot;German Credit Logistic Regression Confusion Matrix&quot;)
+plt.xlabel(&quot;Predicted Label&quot;)
+plt.ylabel(&quot;Actual Label&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_logistic_regression_confusion_matrix.png&quot;, dpi=200)
+plt.show()
+
+
+# ROC curve
+RocCurveDisplay.from_predictions(y_test, y_test_prob)
+plt.title(&quot;German Credit Logistic Regression ROC Curve&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_logistic_regression_roc_curve.png&quot;, dpi=200)
+plt.show()
+
+
+# Example calculation
+prediction_series = pd.Series(y_test_pred, index=x_test.index)
+correct_high_risk = y_test[(y_test == 1) &amp; (prediction_series == 1)].index
+
+if len(correct_high_risk) &gt; 0:
+    example_index = correct_high_risk[0]
+else:
+    example_index = x_test.index[0]
+
+example_original = x_test.loc[[example_index]].copy()
+example_scaled = x_test_scaled.loc[[example_index]].copy()
+example_actual = y_test.loc[example_index]
+example_probability = logistic_model.predict_proba(example_scaled)[0][1]
+example_prediction = logistic_model.predict(example_scaled)[0]
+
+example_calculation = pd.DataFrame({
+    &quot;variable&quot;: x.columns,
+    &quot;coefficient&quot;: logistic_model.coef_[0],
+    &quot;original_value&quot;: example_original.iloc[0].values,
+    &quot;standardized_value&quot;: example_scaled.iloc[0].values,
+    &quot;coefficient_times_value&quot;: logistic_model.coef_[0] * example_scaled.iloc[0].values
+})
+
+intercept_row = pd.DataFrame({
+    &quot;variable&quot;: [&quot;intercept&quot;],
+    &quot;coefficient&quot;: [intercept],
+    &quot;original_value&quot;: [np.nan],
+    &quot;standardized_value&quot;: [1],
+    &quot;coefficient_times_value&quot;: [intercept]
+})
+
+example_calculation = pd.concat([intercept_row, example_calculation], ignore_index=True)
+example_calculation = example_calculation.round(4)
+
+logit_value = example_calculation[&quot;coefficient_times_value&quot;].sum()
+sigmoid_value = 1 / (1 + np.exp(-logit_value))
+
+example_summary = pd.DataFrame({
+    &quot;result&quot;: [&quot;logit_value&quot;, &quot;sigmoid_probability&quot;, &quot;predicted_class&quot;, &quot;actual_class&quot;],
+    &quot;value&quot;: [round(logit_value, 4), round(sigmoid_value, 4), int(example_prediction), int(example_actual)]
+})
+
+print(&quot;Example probability:&quot;, round(example_probability, 4))
+print(&quot;Example predicted class:&quot;, int(example_prediction))
+print(&quot;Example actual class:&quot;, int(example_actual))
+print(example_calculation)
+print(example_summary)
+
+# Save example calculation
+example_calculation.to_csv(&quot;../cleaned_data/german_logistic_regression_example_calculation.csv&quot;, index=False)
+example_summary.to_csv(&quot;../cleaned_data/german_logistic_regression_example_summary.csv&quot;, index=False)
+
+# Create image of example calculation
+plt.figure(figsize=(15, 5))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=example_calculation.values,
+          colLabels=example_calculation.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;German Credit Logistic Regression Example Calculation&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_logistic_regression_example_calculation.png&quot;, dpi=200)
+plt.show()
+
+# Create image of sigmoid result
+plt.figure(figsize=(8, 2.5))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=example_summary.values,
+          colLabels=example_summary.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;German Credit Logistic Regression Sigmoid Result&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_logistic_regression_sigmoid_result.png&quot;, dpi=200)
+plt.show()
+</code></pre>
+    </details>
+    <details id="file5">
+      <summary>decision_tree_and_naive_bayes.py <span class="meta">&mdash; Grows the three decision trees and the four Naive Bayes variants across the borrower and complaint data. Backs Modules 6 and 7. (1027 lines)</span></summary>
+      <p class="code-actions"><a href="decision_tree_and_naive_bayes.py" download>Download this file</a></p>
+      <pre><code>import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import GaussianNB, CategoricalNB, MultinomialNB, BernoulliNB
+
+
+# Load cleaned datasets
+german = pd.read_csv(&quot;../cleaned_data/german_credit_cleaned.csv&quot;)
+cfpb = pd.read_csv(&quot;../cleaned_data/cfpb_cleaned.csv&quot;)
+
+
+# ----- DECISION TREE CLASSIFICATION: GERMAN CREDIT -----
+
+# Keep useful columns for Decision Tree Classification
+numeric_columns = [&quot;age&quot;, &quot;credit_amount&quot;, &quot;duration&quot;, &quot;credit_amount_per_month&quot;]
+categorical_columns = [&quot;sex&quot;, &quot;job&quot;, &quot;housing&quot;, &quot;saving_accounts&quot;, &quot;checking_account&quot;, &quot;purpose&quot;]
+
+columns_to_keep = numeric_columns + categorical_columns + [&quot;credit_risk&quot;]
+
+german_tree = german[columns_to_keep].copy()
+
+# Create binary label
+# credit_risk = 1 stays 0 for lower risk
+# credit_risk = 2 becomes 1 for higher risk
+german_tree[&quot;bad_credit&quot;] = np.where(german_tree[&quot;credit_risk&quot;] == 2, 1, 0)
+
+# Make sure numeric columns are numeric
+for col in numeric_columns:
+    german_tree[col] = pd.to_numeric(german_tree[col], errors=&quot;coerce&quot;)
+
+# Replace missing numeric values with median
+german_tree[numeric_columns] = german_tree[numeric_columns].replace([np.inf, -np.inf], np.nan)
+german_tree[numeric_columns] = german_tree[numeric_columns].fillna(german_tree[numeric_columns].median())
+
+# Replace missing categorical values with unknown
+for col in categorical_columns:
+    german_tree[col] = german_tree[col].fillna(&quot;unknown&quot;).astype(str)
+
+# Convert categorical variables into dummy columns
+x = german_tree[numeric_columns + categorical_columns].copy()
+x = pd.get_dummies(x, columns=categorical_columns, drop_first=True)
+
+# Convert boolean dummy columns to integers
+dummy_columns = x.select_dtypes(include=&quot;bool&quot;).columns
+x[dummy_columns] = x[dummy_columns].astype(int)
+
+y = german_tree[&quot;bad_credit&quot;]
+
+# Final checks
+prepared_tree = x.copy()
+prepared_tree[&quot;bad_credit&quot;] = y.values
+
+print(prepared_tree.head())
+print(prepared_tree.info())
+print(prepared_tree.isnull().sum())
+print(&quot;Duplicate rows:&quot;, prepared_tree.duplicated().sum())
+
+# Save prepared Decision Tree dataset
+prepared_tree.to_csv(&quot;../cleaned_data/german_decision_tree_prepared.csv&quot;, index=False)
+
+
+# Class distribution
+class_counts = prepared_tree[&quot;bad_credit&quot;].value_counts().sort_index()
+
+plt.figure(figsize=(8, 5))
+plt.bar([&quot;Lower Risk&quot;, &quot;Higher Risk&quot;], class_counts.values)
+plt.title(&quot;German Credit Risk Distribution for Decision Tree Classification&quot;)
+plt.xlabel(&quot;Credit Risk Group&quot;)
+plt.ylabel(&quot;Count&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_decision_tree_class_distribution.png&quot;, dpi=200)
+plt.show()
+
+
+# Split data into training and testing data
+x_train, x_test, y_train, y_test = train_test_split(
+    x, y, test_size=0.30, random_state=42, stratify=y
+)
+
+print(&quot;Training data shape:&quot;, x_train.shape)
+print(&quot;Testing data shape:&quot;, x_test.shape)
+
+
+# ----- DECISION TREE MODEL 1: GINI, ALL FEATURES -----
+
+tree_model_1 = DecisionTreeClassifier(
+    criterion=&quot;gini&quot;,
+    max_depth=3,
+    min_samples_leaf=10,
+    class_weight=&quot;balanced&quot;,
+    random_state=42
+)
+
+tree_model_1.fit(x_train, y_train)
+
+# Make predictions
+y_test_pred_1 = tree_model_1.predict(x_test)
+
+
+# ----- DECISION TREE MODEL 2: ENTROPY, ALL FEATURES -----
+
+tree_model_2 = DecisionTreeClassifier(
+    criterion=&quot;entropy&quot;,
+    max_depth=4,
+    min_samples_leaf=15,
+    class_weight=&quot;balanced&quot;,
+    random_state=42
+)
+
+tree_model_2.fit(x_train, y_train)
+
+# Make predictions
+y_test_pred_2 = tree_model_2.predict(x_test)
+
+
+# ----- DECISION TREE MODEL 3: GINI, SELECTED FEATURES -----
+
+# Use a smaller set of important lending-risk variables
+selected_features = [
+    &quot;age&quot;, &quot;credit_amount&quot;, &quot;duration&quot;, &quot;credit_amount_per_month&quot;,
+    &quot;checking_account_moderate&quot;, &quot;checking_account_rich&quot;, &quot;checking_account_unknown&quot;,
+    &quot;saving_accounts_unknown&quot;, &quot;housing_own&quot;, &quot;purpose_radio/TV&quot;
+]
+
+# Keep only selected features that exist in the prepared dataset
+selected_features = [col for col in selected_features if col in x.columns]
+
+x_selected = x[selected_features].copy()
+
+x_train_selected, x_test_selected, y_train_selected, y_test_selected = train_test_split(
+    x_selected, y, test_size=0.30, random_state=42, stratify=y
+)
+
+tree_model_3 = DecisionTreeClassifier(
+    criterion=&quot;gini&quot;,
+    max_depth=4,
+    min_samples_leaf=10,
+    class_weight=&quot;balanced&quot;,
+    random_state=42
+)
+
+tree_model_3.fit(x_train_selected, y_train_selected)
+
+# Make predictions
+y_test_pred_3 = tree_model_3.predict(x_test_selected)
+
+
+# ----- DECISION TREE MODEL COMPARISON -----
+
+tree_results = pd.DataFrame({
+    &quot;model&quot;: [&quot;tree_1_gini_all_features&quot;, &quot;tree_2_entropy_all_features&quot;, &quot;tree_3_gini_selected_features&quot;],
+    &quot;criterion&quot;: [&quot;gini&quot;, &quot;entropy&quot;, &quot;gini&quot;],
+    &quot;max_depth&quot;: [3, 4, 4],
+    &quot;min_samples_leaf&quot;: [10, 15, 10],
+    &quot;features_used&quot;: [x.shape[1], x.shape[1], len(selected_features)],
+    &quot;accuracy&quot;: [
+        accuracy_score(y_test, y_test_pred_1),
+        accuracy_score(y_test, y_test_pred_2),
+        accuracy_score(y_test_selected, y_test_pred_3)
+    ],
+    &quot;precision&quot;: [
+        precision_score(y_test, y_test_pred_1),
+        precision_score(y_test, y_test_pred_2),
+        precision_score(y_test_selected, y_test_pred_3)
+    ],
+    &quot;recall&quot;: [
+        recall_score(y_test, y_test_pred_1),
+        recall_score(y_test, y_test_pred_2),
+        recall_score(y_test_selected, y_test_pred_3)
+    ],
+    &quot;f1_score&quot;: [
+        f1_score(y_test, y_test_pred_1),
+        f1_score(y_test, y_test_pred_2),
+        f1_score(y_test_selected, y_test_pred_3)
+    ]
+})
+
+tree_results = tree_results.round(4)
+
+print(tree_results)
+
+# Save model comparison results
+tree_results.to_csv(&quot;../cleaned_data/german_decision_tree_model_results.csv&quot;, index=False)
+
+# Create image of model comparison results
+plt.figure(figsize=(13, 2.8))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=tree_results.values,
+          colLabels=tree_results.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;German Credit Decision Tree Model Comparison&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_decision_tree_model_comparison.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- DECISION TREE VISUALIZATIONS -----
+
+# Create tree image for Model 1
+plt.figure(figsize=(18, 9))
+plot_tree(tree_model_1,
+          feature_names=x.columns,
+          class_names=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;],
+          rounded=True,
+          fontsize=8)
+plt.title(&quot;Decision Tree Model 1: Gini, All Features&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_decision_tree_model_1.png&quot;, dpi=200)
+plt.show()
+
+
+# Create tree image for Model 2
+plt.figure(figsize=(22, 11))
+plot_tree(tree_model_2,
+          feature_names=x.columns,
+          class_names=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;],
+          rounded=True,
+          fontsize=7)
+plt.title(&quot;Decision Tree Model 2: Entropy, All Features&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_decision_tree_model_2.png&quot;, dpi=200)
+plt.show()
+
+
+# Create tree image for Model 3
+plt.figure(figsize=(22, 11))
+plot_tree(tree_model_3,
+          feature_names=selected_features,
+          class_names=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;],
+          rounded=True,
+          fontsize=7)
+plt.title(&quot;Decision Tree Model 3: Gini, Selected Features&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_decision_tree_model_3.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- DECISION TREE FEATURE IMPORTANCE -----
+
+# Use Model 2 for feature importance because it used all features and a slightly deeper tree
+feature_importance = pd.DataFrame({
+    &quot;feature&quot;: x.columns,
+    &quot;importance&quot;: tree_model_2.feature_importances_
+})
+
+feature_importance = feature_importance.sort_values(&quot;importance&quot;, ascending=False)
+feature_importance = feature_importance[feature_importance[&quot;importance&quot;] &gt; 0]
+feature_importance[&quot;importance&quot;] = feature_importance[&quot;importance&quot;].round(4)
+
+print(feature_importance)
+
+# Save feature importance results
+feature_importance.to_csv(&quot;../cleaned_data/german_decision_tree_feature_importance.csv&quot;, index=False)
+
+# Create image of feature importance table
+feature_importance_preview = feature_importance.head(12).copy()
+
+plt.figure(figsize=(10, 4))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=feature_importance_preview.values,
+          colLabels=feature_importance_preview.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;Top Decision Tree Feature Importances&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_decision_tree_feature_importance_table.png&quot;, dpi=200)
+plt.show()
+
+
+# Create feature importance plot
+top_features = feature_importance.head(12).sort_values(&quot;importance&quot;)
+
+plt.figure(figsize=(9, 6))
+plt.barh(top_features[&quot;feature&quot;], top_features[&quot;importance&quot;])
+plt.title(&quot;Top Decision Tree Feature Importances&quot;)
+plt.xlabel(&quot;Feature Importance&quot;)
+plt.ylabel(&quot;Feature&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_decision_tree_feature_importance.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- DECISION TREE CONFUSION MATRICES -----
+
+# Confusion matrix for Tree 1
+cm_tree_1 = confusion_matrix(y_test, y_test_pred_1)
+
+print(&quot;Decision Tree Model 1 Confusion Matrix&quot;)
+print(cm_tree_1)
+
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm_tree_1, annot=True, fmt=&quot;d&quot;, cmap=&quot;Blues&quot;,
+            xticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;],
+            yticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;])
+plt.title(&quot;Decision Tree Model 1 Confusion Matrix&quot;)
+plt.xlabel(&quot;Predicted Label&quot;)
+plt.ylabel(&quot;Actual Label&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_decision_tree_model_1_confusion_matrix.png&quot;, dpi=200)
+plt.show()
+
+
+# Confusion matrix for Tree 2
+cm_tree_2 = confusion_matrix(y_test, y_test_pred_2)
+
+print(&quot;Decision Tree Model 2 Confusion Matrix&quot;)
+print(cm_tree_2)
+
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm_tree_2, annot=True, fmt=&quot;d&quot;, cmap=&quot;Blues&quot;,
+            xticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;],
+            yticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;])
+plt.title(&quot;Decision Tree Model 2 Confusion Matrix&quot;)
+plt.xlabel(&quot;Predicted Label&quot;)
+plt.ylabel(&quot;Actual Label&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_decision_tree_model_2_confusion_matrix.png&quot;, dpi=200)
+plt.show()
+
+
+# Confusion matrix for Tree 3
+cm_tree_3 = confusion_matrix(y_test_selected, y_test_pred_3)
+
+print(&quot;Decision Tree Model 3 Confusion Matrix&quot;)
+print(cm_tree_3)
+
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm_tree_3, annot=True, fmt=&quot;d&quot;, cmap=&quot;Blues&quot;,
+            xticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;],
+            yticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;])
+plt.title(&quot;Decision Tree Model 3 Confusion Matrix&quot;)
+plt.xlabel(&quot;Predicted Label&quot;)
+plt.ylabel(&quot;Actual Label&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_decision_tree_model_3_confusion_matrix.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- DECISION TREE CONFUSION MATRIX SUMMARY -----
+
+tree_confusion_summary = pd.DataFrame({
+    &quot;model&quot;: [&quot;tree_1_gini_all_features&quot;, &quot;tree_2_entropy_all_features&quot;, &quot;tree_3_gini_selected_features&quot;],
+    &quot;true_lower_risk&quot;: [
+        cm_tree_1[0, 0],
+        cm_tree_2[0, 0],
+        cm_tree_3[0, 0]
+    ],
+    &quot;lower_risk_predicted_higher_risk&quot;: [
+        cm_tree_1[0, 1],
+        cm_tree_2[0, 1],
+        cm_tree_3[0, 1]
+    ],
+    &quot;higher_risk_predicted_lower_risk&quot;: [
+        cm_tree_1[1, 0],
+        cm_tree_2[1, 0],
+        cm_tree_3[1, 0]
+    ],
+    &quot;true_higher_risk&quot;: [
+        cm_tree_1[1, 1],
+        cm_tree_2[1, 1],
+        cm_tree_3[1, 1]
+    ],
+    &quot;accuracy&quot;: [
+        accuracy_score(y_test, y_test_pred_1),
+        accuracy_score(y_test, y_test_pred_2),
+        accuracy_score(y_test_selected, y_test_pred_3)
+    ],
+    &quot;precision&quot;: [
+        precision_score(y_test, y_test_pred_1),
+        precision_score(y_test, y_test_pred_2),
+        precision_score(y_test_selected, y_test_pred_3)
+    ],
+    &quot;recall&quot;: [
+        recall_score(y_test, y_test_pred_1),
+        recall_score(y_test, y_test_pred_2),
+        recall_score(y_test_selected, y_test_pred_3)
+    ],
+    &quot;f1_score&quot;: [
+        f1_score(y_test, y_test_pred_1),
+        f1_score(y_test, y_test_pred_2),
+        f1_score(y_test_selected, y_test_pred_3)
+    ]
+})
+
+tree_confusion_summary = tree_confusion_summary.round(4)
+
+print(tree_confusion_summary)
+
+# Save confusion matrix summary
+tree_confusion_summary.to_csv(&quot;../cleaned_data/german_decision_tree_confusion_summary.csv&quot;, index=False)
+
+# Create image of confusion matrix summary
+plt.figure(figsize=(14, 3))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=tree_confusion_summary.values,
+          colLabels=tree_confusion_summary.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;German Credit Decision Tree Confusion Matrix Summary&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_decision_tree_confusion_summary.png&quot;, dpi=200)
+plt.show()
+
+
+# Save predictions for each tree
+tree_predictions = pd.DataFrame({
+    &quot;actual_bad_credit&quot;: y_test,
+    &quot;tree_1_predicted_bad_credit&quot;: y_test_pred_1,
+    &quot;tree_2_predicted_bad_credit&quot;: y_test_pred_2
+})
+
+tree_predictions_selected = pd.DataFrame({
+    &quot;actual_bad_credit&quot;: y_test_selected,
+    &quot;tree_3_predicted_bad_credit&quot;: y_test_pred_3
+})
+
+tree_predictions.to_csv(&quot;../cleaned_data/german_decision_tree_predictions_models_1_and_2.csv&quot;, index=False)
+tree_predictions_selected.to_csv(&quot;../cleaned_data/german_decision_tree_predictions_model_3.csv&quot;, index=False)
+
+
+# ----- NAIVE BAYES CLASSIFICATION -----
+
+
+# ----- GERMAN CREDIT TEXT PREPARATION FOR GAUSSIAN AND CATEGORICAL NAIVE BAYES -----
+
+german_nb = german.copy()
+
+# Create binary label
+# credit_risk = 1 stays 0 for lower risk
+# credit_risk = 2 becomes 1 for higher risk
+german_nb[&quot;bad_credit&quot;] = np.where(german_nb[&quot;credit_risk&quot;] == 2, 1, 0)
+
+
+# ----- GAUSSIAN NAIVE BAYES: GERMAN CREDIT NUMERIC DATA -----
+
+# Keep continuous numeric columns for Gaussian Naive Bayes
+gaussian_columns = [&quot;age&quot;, &quot;credit_amount&quot;, &quot;duration&quot;, &quot;credit_amount_per_month&quot;]
+
+german_gaussian_nb = german_nb[gaussian_columns + [&quot;bad_credit&quot;]].copy()
+
+# Make sure numeric columns are numeric
+for col in gaussian_columns:
+    german_gaussian_nb[col] = pd.to_numeric(german_gaussian_nb[col], errors=&quot;coerce&quot;)
+
+# Replace missing values with median
+german_gaussian_nb = german_gaussian_nb.replace([np.inf, -np.inf], np.nan)
+german_gaussian_nb[gaussian_columns] = german_gaussian_nb[gaussian_columns].fillna(
+    german_gaussian_nb[gaussian_columns].median()
+)
+
+# Final checks
+print(german_gaussian_nb.head())
+print(german_gaussian_nb.info())
+print(german_gaussian_nb.isnull().sum())
+print(&quot;Duplicate rows:&quot;, german_gaussian_nb.duplicated().sum())
+
+# Save prepared Gaussian Naive Bayes dataset
+german_gaussian_nb.to_csv(&quot;../cleaned_data/german_gaussian_nb_prepared.csv&quot;, index=False)
+
+
+# ----- CATEGORICAL NAIVE BAYES: GERMAN CREDIT CATEGORICAL DATA -----
+
+# Keep categorical columns for Categorical Naive Bayes
+categorical_columns = [&quot;sex&quot;, &quot;job&quot;, &quot;housing&quot;, &quot;saving_accounts&quot;, &quot;checking_account&quot;, &quot;purpose&quot;]
+
+german_categorical_nb = german_nb[categorical_columns + [&quot;bad_credit&quot;]].copy()
+
+# Replace missing categorical values and encode categories as numbers
+for col in categorical_columns:
+    german_categorical_nb[col] = german_categorical_nb[col].fillna(&quot;unknown&quot;).astype(str)
+    german_categorical_nb[col] = german_categorical_nb[col].astype(&quot;category&quot;).cat.codes
+
+# Final checks
+print(german_categorical_nb.head())
+print(german_categorical_nb.info())
+print(german_categorical_nb.isnull().sum())
+print(&quot;Duplicate rows:&quot;, german_categorical_nb.duplicated().sum())
+
+# Save prepared Categorical Naive Bayes dataset
+german_categorical_nb.to_csv(&quot;../cleaned_data/german_categorical_nb_prepared.csv&quot;, index=False)
+
+
+# ----- CFPB TEXT PREPARATION FOR MULTINOMIAL AND BERNOULLI NAIVE BAYES -----
+
+# Keep the top four mortgage sub-products to avoid very small classes
+top_sub_products = cfpb[&quot;sub_product&quot;].value_counts().head(4).index.tolist()
+
+cfpb_nb = cfpb[cfpb[&quot;sub_product&quot;].isin(top_sub_products)].copy()
+
+# Combine useful complaint fields into one text feature
+cfpb_nb[&quot;text_features&quot;] = (
+    cfpb_nb[&quot;issue&quot;].fillna(&quot;&quot;).astype(str) + &quot; &quot; +
+    cfpb_nb[&quot;sub_issue&quot;].fillna(&quot;&quot;).astype(str) + &quot; &quot; +
+    cfpb_nb[&quot;company_response_to_consumer&quot;].fillna(&quot;&quot;).astype(str) + &quot; &quot; +
+    cfpb_nb[&quot;submitted_via&quot;].fillna(&quot;&quot;).astype(str)
+)
+
+# Create label
+cfpb_nb[&quot;sub_product_label&quot;] = cfpb_nb[&quot;sub_product&quot;].astype(str)
+
+# Use a limited vocabulary so the prepared dataset is understandable in the report
+text_vectorizer = CountVectorizer(stop_words=&quot;english&quot;, max_features=20)
+
+cfpb_word_counts = text_vectorizer.fit_transform(cfpb_nb[&quot;text_features&quot;])
+word_features = text_vectorizer.get_feature_names_out()
+
+
+# ----- MULTINOMIAL NAIVE BAYES: CFPB WORD COUNT DATA -----
+
+cfpb_multinomial_nb = pd.DataFrame(cfpb_word_counts.toarray(), columns=word_features)
+cfpb_multinomial_nb[&quot;sub_product_label&quot;] = cfpb_nb[&quot;sub_product_label&quot;].values
+
+# Final checks
+print(cfpb_multinomial_nb.head())
+print(cfpb_multinomial_nb.info())
+print(cfpb_multinomial_nb.isnull().sum())
+print(&quot;Duplicate rows:&quot;, cfpb_multinomial_nb.duplicated().sum())
+
+# Save prepared Multinomial Naive Bayes dataset
+cfpb_multinomial_nb.to_csv(&quot;../cleaned_data/cfpb_multinomial_nb_prepared.csv&quot;, index=False)
+
+
+# ----- BERNOULLI NAIVE BAYES: CFPB BINARY WORD PRESENCE DATA -----
+
+cfpb_binary_values = (cfpb_word_counts.toarray() &gt; 0).astype(int)
+
+cfpb_bernoulli_nb = pd.DataFrame(cfpb_binary_values, columns=word_features)
+cfpb_bernoulli_nb[&quot;sub_product_label&quot;] = cfpb_nb[&quot;sub_product_label&quot;].values
+
+# Final checks
+print(cfpb_bernoulli_nb.head())
+print(cfpb_bernoulli_nb.info())
+print(cfpb_bernoulli_nb.isnull().sum())
+print(&quot;Duplicate rows:&quot;, cfpb_bernoulli_nb.duplicated().sum())
+
+# Save prepared Bernoulli Naive Bayes dataset
+cfpb_bernoulli_nb.to_csv(&quot;../cleaned_data/cfpb_bernoulli_nb_prepared.csv&quot;, index=False)
+
+
+# ----- NAIVE BAYES DATA PREPARATION PLAN -----
+
+naive_bayes_plan = pd.DataFrame({
+    &quot;method&quot;: [&quot;GaussianNB&quot;, &quot;CategoricalNB&quot;, &quot;MultinomialNB&quot;, &quot;BernoulliNB&quot;],
+    &quot;dataset&quot;: [&quot;German Credit&quot;, &quot;German Credit&quot;, &quot;CFPB Complaints&quot;, &quot;CFPB Complaints&quot;],
+    &quot;format&quot;: [&quot;continuous numeric&quot;, &quot;encoded categories&quot;, &quot;word counts&quot;, &quot;binary word presence&quot;],
+    &quot;label&quot;: [&quot;bad_credit&quot;, &quot;bad_credit&quot;, &quot;sub_product_label&quot;, &quot;sub_product_label&quot;],
+    &quot;rows&quot;: [
+        german_gaussian_nb.shape[0],
+        german_categorical_nb.shape[0],
+        cfpb_multinomial_nb.shape[0],
+        cfpb_bernoulli_nb.shape[0]
+    ],
+    &quot;features&quot;: [
+        german_gaussian_nb.shape[1] - 1,
+        german_categorical_nb.shape[1] - 1,
+        cfpb_multinomial_nb.shape[1] - 1,
+        cfpb_bernoulli_nb.shape[1] - 1
+    ]
+})
+
+print(naive_bayes_plan)
+
+# Save Naive Bayes preparation plan
+naive_bayes_plan.to_csv(&quot;../cleaned_data/naive_bayes_data_preparation_plan.csv&quot;, index=False)
+
+# Create image of Naive Bayes preparation plan
+plt.figure(figsize=(12, 3))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=naive_bayes_plan.values,
+          colLabels=naive_bayes_plan.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;Naive Bayes Data Preparation Plan&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/naive_bayes_data_preparation_plan.png&quot;, dpi=200)
+plt.show()
+
+
+# CFPB class distribution used for text-based Naive Bayes models
+cfpb_sub_product_counts = cfpb_nb[&quot;sub_product_label&quot;].value_counts()
+
+print(cfpb_sub_product_counts)
+
+plt.figure(figsize=(9, 5))
+plt.barh(cfpb_sub_product_counts.index, cfpb_sub_product_counts.values)
+plt.title(&quot;CFPB Sub-Product Distribution for Naive Bayes&quot;)
+plt.xlabel(&quot;Count&quot;)
+plt.ylabel(&quot;Sub-Product&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/cfpb_naive_bayes_sub_product_distribution.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- GAUSSIAN NAIVE BAYES: GERMAN CREDIT MODELING AND RESULTS -----
+
+# Set independent variables and dependent variable
+x_gaussian = german_gaussian_nb.drop(columns=[&quot;bad_credit&quot;])
+y_gaussian = german_gaussian_nb[&quot;bad_credit&quot;]
+
+# Split data into training and testing data
+x_gaussian_train, x_gaussian_test, y_gaussian_train, y_gaussian_test = train_test_split(
+    x_gaussian, y_gaussian, test_size=0.30, random_state=42, stratify=y_gaussian
+)
+
+print(&quot;Gaussian NB training data shape:&quot;, x_gaussian_train.shape)
+print(&quot;Gaussian NB testing data shape:&quot;, x_gaussian_test.shape)
+
+# Run Gaussian Naive Bayes
+gaussian_nb_model = GaussianNB()
+gaussian_nb_model.fit(x_gaussian_train, y_gaussian_train)
+
+# Make predictions
+gaussian_predictions = gaussian_nb_model.predict(x_gaussian_test)
+gaussian_probabilities = gaussian_nb_model.predict_proba(x_gaussian_test)
+
+print(&quot;Gaussian NB classes:&quot;, gaussian_nb_model.classes_)
+print(&quot;Gaussian NB probabilities:&quot;)
+print(np.round(gaussian_probabilities[:10], 4))
+
+
+# ----- CATEGORICAL NAIVE BAYES: GERMAN CREDIT MODELING AND RESULTS -----
+
+# Set independent variables and dependent variable
+x_categorical = german_categorical_nb.drop(columns=[&quot;bad_credit&quot;])
+y_categorical = german_categorical_nb[&quot;bad_credit&quot;]
+
+# Split data into training and testing data
+x_categorical_train, x_categorical_test, y_categorical_train, y_categorical_test = train_test_split(
+    x_categorical, y_categorical, test_size=0.30, random_state=42, stratify=y_categorical
+)
+
+print(&quot;Categorical NB training data shape:&quot;, x_categorical_train.shape)
+print(&quot;Categorical NB testing data shape:&quot;, x_categorical_test.shape)
+
+# Run Categorical Naive Bayes
+categorical_nb_model = CategoricalNB()
+categorical_nb_model.fit(x_categorical_train, y_categorical_train)
+
+# Make predictions
+categorical_predictions = categorical_nb_model.predict(x_categorical_test)
+categorical_probabilities = categorical_nb_model.predict_proba(x_categorical_test)
+
+print(&quot;Categorical NB classes:&quot;, categorical_nb_model.classes_)
+print(&quot;Categorical NB probabilities:&quot;)
+print(np.round(categorical_probabilities[:10], 4))
+
+
+# ----- MULTINOMIAL NAIVE BAYES: CFPB COMPLAINTS MODELING AND RESULTS -----
+
+# Set independent variables and dependent variable
+x_multinomial = cfpb_multinomial_nb.drop(columns=[&quot;sub_product_label&quot;])
+y_multinomial = cfpb_multinomial_nb[&quot;sub_product_label&quot;]
+
+# Split data into training and testing data
+x_multinomial_train, x_multinomial_test, y_multinomial_train, y_multinomial_test = train_test_split(
+    x_multinomial, y_multinomial, test_size=0.30, random_state=42, stratify=y_multinomial
+)
+
+print(&quot;Multinomial NB training data shape:&quot;, x_multinomial_train.shape)
+print(&quot;Multinomial NB testing data shape:&quot;, x_multinomial_test.shape)
+
+# Run Multinomial Naive Bayes
+multinomial_nb_model = MultinomialNB()
+multinomial_nb_model.fit(x_multinomial_train, y_multinomial_train)
+
+# Make predictions
+multinomial_predictions = multinomial_nb_model.predict(x_multinomial_test)
+multinomial_probabilities = multinomial_nb_model.predict_proba(x_multinomial_test)
+
+print(&quot;Multinomial NB classes:&quot;, multinomial_nb_model.classes_)
+print(&quot;Multinomial NB probabilities:&quot;)
+print(np.round(multinomial_probabilities[:10], 4))
+
+
+# ----- BERNOULLI NAIVE BAYES: CFPB COMPLAINTS MODELING AND RESULTS -----
+
+# Set independent variables and dependent variable
+x_bernoulli = cfpb_bernoulli_nb.drop(columns=[&quot;sub_product_label&quot;])
+y_bernoulli = cfpb_bernoulli_nb[&quot;sub_product_label&quot;]
+
+# Split data into training and testing data
+x_bernoulli_train, x_bernoulli_test, y_bernoulli_train, y_bernoulli_test = train_test_split(
+    x_bernoulli, y_bernoulli, test_size=0.30, random_state=42, stratify=y_bernoulli
+)
+
+print(&quot;Bernoulli NB training data shape:&quot;, x_bernoulli_train.shape)
+print(&quot;Bernoulli NB testing data shape:&quot;, x_bernoulli_test.shape)
+
+# Run Bernoulli Naive Bayes
+bernoulli_nb_model = BernoulliNB()
+bernoulli_nb_model.fit(x_bernoulli_train, y_bernoulli_train)
+
+# Make predictions
+bernoulli_predictions = bernoulli_nb_model.predict(x_bernoulli_test)
+bernoulli_probabilities = bernoulli_nb_model.predict_proba(x_bernoulli_test)
+
+print(&quot;Bernoulli NB classes:&quot;, bernoulli_nb_model.classes_)
+print(&quot;Bernoulli NB probabilities:&quot;)
+print(np.round(bernoulli_probabilities[:10], 4))
+
+
+# ----- NAIVE BAYES MODEL COMPARISON -----
+
+naive_bayes_results = pd.DataFrame({
+    &quot;model&quot;: [&quot;GaussianNB&quot;, &quot;CategoricalNB&quot;, &quot;MultinomialNB&quot;, &quot;BernoulliNB&quot;],
+    &quot;dataset&quot;: [&quot;German Credit&quot;, &quot;German Credit&quot;, &quot;CFPB Complaints&quot;, &quot;CFPB Complaints&quot;],
+    &quot;target_label&quot;: [&quot;bad_credit&quot;, &quot;bad_credit&quot;, &quot;sub_product_label&quot;, &quot;sub_product_label&quot;],
+    &quot;accuracy&quot;: [
+        accuracy_score(y_gaussian_test, gaussian_predictions),
+        accuracy_score(y_categorical_test, categorical_predictions),
+        accuracy_score(y_multinomial_test, multinomial_predictions),
+        accuracy_score(y_bernoulli_test, bernoulli_predictions)
+    ],
+    &quot;precision_weighted&quot;: [
+        precision_score(y_gaussian_test, gaussian_predictions, average=&quot;weighted&quot;, zero_division=0),
+        precision_score(y_categorical_test, categorical_predictions, average=&quot;weighted&quot;, zero_division=0),
+        precision_score(y_multinomial_test, multinomial_predictions, average=&quot;weighted&quot;, zero_division=0),
+        precision_score(y_bernoulli_test, bernoulli_predictions, average=&quot;weighted&quot;, zero_division=0)
+    ],
+    &quot;recall_weighted&quot;: [
+        recall_score(y_gaussian_test, gaussian_predictions, average=&quot;weighted&quot;, zero_division=0),
+        recall_score(y_categorical_test, categorical_predictions, average=&quot;weighted&quot;, zero_division=0),
+        recall_score(y_multinomial_test, multinomial_predictions, average=&quot;weighted&quot;, zero_division=0),
+        recall_score(y_bernoulli_test, bernoulli_predictions, average=&quot;weighted&quot;, zero_division=0)
+    ],
+    &quot;f1_score_weighted&quot;: [
+        f1_score(y_gaussian_test, gaussian_predictions, average=&quot;weighted&quot;, zero_division=0),
+        f1_score(y_categorical_test, categorical_predictions, average=&quot;weighted&quot;, zero_division=0),
+        f1_score(y_multinomial_test, multinomial_predictions, average=&quot;weighted&quot;, zero_division=0),
+        f1_score(y_bernoulli_test, bernoulli_predictions, average=&quot;weighted&quot;, zero_division=0)
+    ]
+})
+
+naive_bayes_results = naive_bayes_results.round(4)
+
+print(naive_bayes_results)
+
+# Save Naive Bayes model results
+naive_bayes_results.to_csv(&quot;../cleaned_data/naive_bayes_model_results.csv&quot;, index=False)
+
+# Create image of Naive Bayes model results
+plt.figure(figsize=(13, 3))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=naive_bayes_results.values,
+          colLabels=naive_bayes_results.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;Naive Bayes Model Results&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/naive_bayes_model_results.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- NAIVE BAYES PREDICTION PROBABILITIES -----
+
+# Probability table for Gaussian Naive Bayes
+gaussian_probability_table = pd.DataFrame(
+    gaussian_probabilities,
+    columns=[&quot;prob_lower_risk&quot;, &quot;prob_higher_risk&quot;],
+    index=x_gaussian_test.index
+)
+
+gaussian_probability_table[&quot;actual_bad_credit&quot;] = y_gaussian_test.values
+gaussian_probability_table[&quot;predicted_bad_credit&quot;] = gaussian_predictions
+
+gaussian_probability_table = gaussian_probability_table[[
+    &quot;actual_bad_credit&quot;, &quot;predicted_bad_credit&quot;, &quot;prob_lower_risk&quot;, &quot;prob_higher_risk&quot;
+]]
+
+gaussian_probability_table = gaussian_probability_table.round(4)
+
+print(gaussian_probability_table.head(10))
+
+gaussian_probability_table.to_csv(&quot;../cleaned_data/gaussian_nb_prediction_probabilities.csv&quot;, index=False)
+
+
+# Probability table for Categorical Naive Bayes
+categorical_probability_table = pd.DataFrame(
+    categorical_probabilities,
+    columns=[&quot;prob_lower_risk&quot;, &quot;prob_higher_risk&quot;],
+    index=x_categorical_test.index
+)
+
+categorical_probability_table[&quot;actual_bad_credit&quot;] = y_categorical_test.values
+categorical_probability_table[&quot;predicted_bad_credit&quot;] = categorical_predictions
+
+categorical_probability_table = categorical_probability_table[[
+    &quot;actual_bad_credit&quot;, &quot;predicted_bad_credit&quot;, &quot;prob_lower_risk&quot;, &quot;prob_higher_risk&quot;
+]]
+
+categorical_probability_table = categorical_probability_table.round(4)
+
+print(categorical_probability_table.head(10))
+
+categorical_probability_table.to_csv(&quot;../cleaned_data/categorical_nb_prediction_probabilities.csv&quot;, index=False)
+
+
+# Probability table for Multinomial Naive Bayes
+multinomial_probability_table = pd.DataFrame(
+    multinomial_probabilities,
+    columns=[&quot;prob_&quot; + str(class_name) for class_name in multinomial_nb_model.classes_],
+    index=x_multinomial_test.index
+)
+
+multinomial_probability_table[&quot;actual_sub_product&quot;] = y_multinomial_test.values
+multinomial_probability_table[&quot;predicted_sub_product&quot;] = multinomial_predictions
+
+multinomial_probability_table = multinomial_probability_table[
+    [&quot;actual_sub_product&quot;, &quot;predicted_sub_product&quot;] +
+    [&quot;prob_&quot; + str(class_name) for class_name in multinomial_nb_model.classes_]
+]
+
+multinomial_probability_table = multinomial_probability_table.round(4)
+
+print(multinomial_probability_table.head(10))
+
+multinomial_probability_table.to_csv(&quot;../cleaned_data/multinomial_nb_prediction_probabilities.csv&quot;, index=False)
+
+
+# Probability table for Bernoulli Naive Bayes
+bernoulli_probability_table = pd.DataFrame(
+    bernoulli_probabilities,
+    columns=[&quot;prob_&quot; + str(class_name) for class_name in bernoulli_nb_model.classes_],
+    index=x_bernoulli_test.index
+)
+
+bernoulli_probability_table[&quot;actual_sub_product&quot;] = y_bernoulli_test.values
+bernoulli_probability_table[&quot;predicted_sub_product&quot;] = bernoulli_predictions
+
+bernoulli_probability_table = bernoulli_probability_table[
+    [&quot;actual_sub_product&quot;, &quot;predicted_sub_product&quot;] +
+    [&quot;prob_&quot; + str(class_name) for class_name in bernoulli_nb_model.classes_]
+]
+
+bernoulli_probability_table = bernoulli_probability_table.round(4)
+
+print(bernoulli_probability_table.head(10))
+
+bernoulli_probability_table.to_csv(&quot;../cleaned_data/bernoulli_nb_prediction_probabilities.csv&quot;, index=False)
+
+
+# Create image of Gaussian probability examples
+gaussian_probability_preview = gaussian_probability_table.head(8).copy()
+
+plt.figure(figsize=(10, 3))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=gaussian_probability_preview.values,
+          colLabels=gaussian_probability_preview.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;Gaussian Naive Bayes Prediction Probabilities&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/gaussian_nb_prediction_probabilities.png&quot;, dpi=200)
+plt.show()
+
+
+# Create image of Categorical probability examples
+categorical_probability_preview = categorical_probability_table.head(8).copy()
+
+plt.figure(figsize=(10, 3))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=categorical_probability_preview.values,
+          colLabels=categorical_probability_preview.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;Categorical Naive Bayes Prediction Probabilities&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/categorical_nb_prediction_probabilities.png&quot;, dpi=200)
+plt.show()
+
+
+# Create image of Multinomial probability examples
+multinomial_probability_preview = multinomial_probability_table.head(6).copy()
+
+plt.figure(figsize=(18, 3.5))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=multinomial_probability_preview.values,
+          colLabels=multinomial_probability_preview.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;Multinomial Naive Bayes Prediction Probabilities&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/multinomial_nb_prediction_probabilities.png&quot;, dpi=200)
+plt.show()
+
+
+# Create image of Bernoulli probability examples
+bernoulli_probability_preview = bernoulli_probability_table.head(6).copy()
+
+plt.figure(figsize=(18, 3.5))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=bernoulli_probability_preview.values,
+          colLabels=bernoulli_probability_preview.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;Bernoulli Naive Bayes Prediction Probabilities&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/bernoulli_nb_prediction_probabilities.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- NAIVE BAYES CONFUSION MATRICES -----
+
+# Gaussian Naive Bayes confusion matrix
+cm_gaussian = confusion_matrix(y_gaussian_test, gaussian_predictions)
+
+print(&quot;Gaussian Naive Bayes Confusion Matrix&quot;)
+print(cm_gaussian)
+
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm_gaussian, annot=True, fmt=&quot;d&quot;, cmap=&quot;Blues&quot;,
+            xticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;],
+            yticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;])
+plt.title(&quot;Gaussian Naive Bayes Confusion Matrix&quot;)
+plt.xlabel(&quot;Predicted Label&quot;)
+plt.ylabel(&quot;Actual Label&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/gaussian_nb_confusion_matrix.png&quot;, dpi=200)
+plt.show()
+
+
+# Categorical Naive Bayes confusion matrix
+cm_categorical = confusion_matrix(y_categorical_test, categorical_predictions)
+
+print(&quot;Categorical Naive Bayes Confusion Matrix&quot;)
+print(cm_categorical)
+
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm_categorical, annot=True, fmt=&quot;d&quot;, cmap=&quot;Blues&quot;,
+            xticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;],
+            yticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;])
+plt.title(&quot;Categorical Naive Bayes Confusion Matrix&quot;)
+plt.xlabel(&quot;Predicted Label&quot;)
+plt.ylabel(&quot;Actual Label&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/categorical_nb_confusion_matrix.png&quot;, dpi=200)
+plt.show()
+
+
+# Multinomial Naive Bayes confusion matrix
+cm_multinomial = confusion_matrix(y_multinomial_test, multinomial_predictions,
+                                  labels=multinomial_nb_model.classes_)
+
+print(&quot;Multinomial Naive Bayes Confusion Matrix&quot;)
+print(cm_multinomial)
+
+plt.figure(figsize=(9, 7))
+sns.heatmap(cm_multinomial, annot=True, fmt=&quot;d&quot;, cmap=&quot;Blues&quot;,
+            xticklabels=multinomial_nb_model.classes_,
+            yticklabels=multinomial_nb_model.classes_)
+plt.title(&quot;Multinomial Naive Bayes Confusion Matrix&quot;)
+plt.xlabel(&quot;Predicted Label&quot;)
+plt.ylabel(&quot;Actual Label&quot;)
+plt.xticks(rotation=35, ha=&quot;right&quot;)
+plt.yticks(rotation=0)
+plt.tight_layout()
+plt.savefig(&quot;../figures/multinomial_nb_confusion_matrix.png&quot;, dpi=200)
+plt.show()
+
+
+# Bernoulli Naive Bayes confusion matrix
+cm_bernoulli = confusion_matrix(y_bernoulli_test, bernoulli_predictions,
+                                labels=bernoulli_nb_model.classes_)
+
+print(&quot;Bernoulli Naive Bayes Confusion Matrix&quot;)
+print(cm_bernoulli)
+
+plt.figure(figsize=(9, 7))
+sns.heatmap(cm_bernoulli, annot=True, fmt=&quot;d&quot;, cmap=&quot;Blues&quot;,
+            xticklabels=bernoulli_nb_model.classes_,
+            yticklabels=bernoulli_nb_model.classes_)
+plt.title(&quot;Bernoulli Naive Bayes Confusion Matrix&quot;)
+plt.xlabel(&quot;Predicted Label&quot;)
+plt.ylabel(&quot;Actual Label&quot;)
+plt.xticks(rotation=35, ha=&quot;right&quot;)
+plt.yticks(rotation=0)
+plt.tight_layout()
+plt.savefig(&quot;../figures/bernoulli_nb_confusion_matrix.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- NAIVE BAYES CONFUSION MATRIX SUMMARY -----
+
+naive_bayes_confusion_summary = pd.DataFrame({
+    &quot;model&quot;: [&quot;GaussianNB&quot;, &quot;CategoricalNB&quot;, &quot;MultinomialNB&quot;, &quot;BernoulliNB&quot;],
+    &quot;dataset&quot;: [&quot;German Credit&quot;, &quot;German Credit&quot;, &quot;CFPB Complaints&quot;, &quot;CFPB Complaints&quot;],
+    &quot;correct_predictions&quot;: [
+        np.trace(cm_gaussian),
+        np.trace(cm_categorical),
+        np.trace(cm_multinomial),
+        np.trace(cm_bernoulli)
+    ],
+    &quot;total_testing_records&quot;: [
+        cm_gaussian.sum(),
+        cm_categorical.sum(),
+        cm_multinomial.sum(),
+        cm_bernoulli.sum()
+    ],
+    &quot;accuracy&quot;: [
+        accuracy_score(y_gaussian_test, gaussian_predictions),
+        accuracy_score(y_categorical_test, categorical_predictions),
+        accuracy_score(y_multinomial_test, multinomial_predictions),
+        accuracy_score(y_bernoulli_test, bernoulli_predictions)
+    ],
+    &quot;weighted_f1_score&quot;: [
+        f1_score(y_gaussian_test, gaussian_predictions, average=&quot;weighted&quot;, zero_division=0),
+        f1_score(y_categorical_test, categorical_predictions, average=&quot;weighted&quot;, zero_division=0),
+        f1_score(y_multinomial_test, multinomial_predictions, average=&quot;weighted&quot;, zero_division=0),
+        f1_score(y_bernoulli_test, bernoulli_predictions, average=&quot;weighted&quot;, zero_division=0)
+    ]
+})
+
+naive_bayes_confusion_summary = naive_bayes_confusion_summary.round(4)
+
+print(naive_bayes_confusion_summary)
+
+# Save confusion matrix summary
+naive_bayes_confusion_summary.to_csv(&quot;../cleaned_data/naive_bayes_confusion_summary.csv&quot;, index=False)
+
+# Create image of confusion matrix summary
+plt.figure(figsize=(12, 3))
+plt.axis(&quot;off&quot;)
+plt.table(cellText=naive_bayes_confusion_summary.values,
+          colLabels=naive_bayes_confusion_summary.columns,
+          loc=&quot;center&quot;)
+plt.title(&quot;Naive Bayes Confusion Matrix Summary&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/naive_bayes_confusion_summary.png&quot;, dpi=200)
+plt.show()
+</code></pre>
+    </details>
+    <details id="file6">
+      <summary>svm_and_ensemble_classification.py <span class="meta">&mdash; Sweeps the SVM kernels and costs, then tunes random forest, AdaBoost, and stacking. Backs Modules 8 and 9. (1229 lines)</span></summary>
+      <p class="code-actions"><a href="svm_and_ensemble_classification.py" download>Download this file</a></p>
+      <pre><code>import os
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, StackingClassifier
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import GaussianNB
+
+
+# Create output folders if they do not already exist
+os.makedirs(&quot;../cleaned_data&quot;, exist_ok=True)
+os.makedirs(&quot;../figures&quot;, exist_ok=True)
+
+
+# Load cleaned dataset
+german = pd.read_csv(&quot;../cleaned_data/german_credit_cleaned.csv&quot;)
+
+
+# ----- SUPPORT VECTOR MACHINE CLASSIFICATION -----
+
+
+# ----- SVM DATA PREPARATION -----
+
+# Create credit amount per month if it is not already in the cleaned dataset
+if &quot;credit_amount_per_month&quot; not in german.columns:
+    german[&quot;credit_amount_per_month&quot;] = german[&quot;credit_amount&quot;] / german[&quot;duration&quot;].replace(0, np.nan)
+
+# Keep useful columns for SVM Classification
+numeric_columns = [&quot;age&quot;, &quot;credit_amount&quot;, &quot;duration&quot;, &quot;credit_amount_per_month&quot;]
+categorical_columns = [&quot;sex&quot;, &quot;job&quot;, &quot;housing&quot;, &quot;saving_accounts&quot;, &quot;checking_account&quot;, &quot;purpose&quot;]
+
+columns_to_keep = numeric_columns + categorical_columns + [&quot;credit_risk&quot;]
+
+german_svm = german[columns_to_keep].copy()
+
+# Create binary label
+# credit_risk = 1 stays 0 for lower risk
+# credit_risk = 2 becomes 1 for higher risk
+german_svm[&quot;bad_credit&quot;] = np.where(german_svm[&quot;credit_risk&quot;] == 2, 1, 0)
+
+# Make sure numeric columns are numeric
+for col in numeric_columns:
+    german_svm[col] = pd.to_numeric(german_svm[col], errors=&quot;coerce&quot;)
+
+# Replace missing numeric values with median
+german_svm[numeric_columns] = german_svm[numeric_columns].replace([np.inf, -np.inf], np.nan)
+german_svm[numeric_columns] = german_svm[numeric_columns].fillna(german_svm[numeric_columns].median())
+
+# Replace missing categorical values with unknown
+for col in categorical_columns:
+    german_svm[col] = german_svm[col].fillna(&quot;unknown&quot;).astype(str)
+
+# Convert categorical variables into dummy columns
+x = german_svm[numeric_columns + categorical_columns].copy()
+x = pd.get_dummies(x, columns=categorical_columns, drop_first=True)
+
+# Convert boolean dummy columns to integers
+dummy_columns = x.select_dtypes(include=&quot;bool&quot;).columns
+x[dummy_columns] = x[dummy_columns].astype(int)
+
+y = german_svm[&quot;bad_credit&quot;]
+
+# Save unscaled prepared SVM dataset
+prepared_svm = x.copy()
+prepared_svm[&quot;bad_credit&quot;] = y.values
+
+print(prepared_svm.head())
+print(prepared_svm.info())
+print(prepared_svm.isnull().sum())
+print(&quot;Duplicate rows:&quot;, prepared_svm.duplicated().sum())
+
+prepared_svm.to_csv(&quot;../cleaned_data/german_svm_prepared.csv&quot;, index=False)
+
+
+# ----- SCALE SVM DATA -----
+
+# SVM models are sensitive to feature scale, so standardize the predictor variables
+scaler = StandardScaler()
+
+x_scaled_values = scaler.fit_transform(x)
+
+x_scaled = pd.DataFrame(x_scaled_values, columns=x.columns, index=x.index)
+
+prepared_svm_scaled = x_scaled.copy()
+prepared_svm_scaled[&quot;bad_credit&quot;] = y.values
+
+print(prepared_svm_scaled.head())
+print(prepared_svm_scaled.info())
+print(prepared_svm_scaled.isnull().sum())
+print(&quot;Duplicate rows:&quot;, prepared_svm_scaled.duplicated().sum())
+
+prepared_svm_scaled.to_csv(&quot;../cleaned_data/german_svm_scaled_prepared.csv&quot;, index=False)
+
+
+# ----- CLASS DISTRIBUTION -----
+
+class_counts = prepared_svm[&quot;bad_credit&quot;].value_counts().sort_index()
+
+plt.figure(figsize=(8, 5))
+plt.bar([&quot;Lower Risk&quot;, &quot;Higher Risk&quot;], class_counts.values)
+plt.title(&quot;German Credit Risk Distribution for SVM Classification&quot;)
+plt.xlabel(&quot;Credit Risk Group&quot;)
+plt.ylabel(&quot;Count&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_svm_class_distribution.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- PCA VISUALIZATION OF SVM DATA -----
+
+# Use PCA only for visualization because the full SVM model uses all prepared features
+pca = PCA(n_components=2, random_state=42)
+x_pca = pca.fit_transform(x_scaled)
+
+svm_pca_preview = pd.DataFrame({
+    &quot;PC1&quot;: x_pca[:, 0],
+    &quot;PC2&quot;: x_pca[:, 1],
+    &quot;bad_credit&quot;: y.values
+})
+
+plt.figure(figsize=(8, 6))
+plt.scatter(
+    svm_pca_preview[&quot;PC1&quot;],
+    svm_pca_preview[&quot;PC2&quot;],
+    c=svm_pca_preview[&quot;bad_credit&quot;],
+    alpha=0.75
+)
+plt.title(&quot;PCA View of Prepared German Credit Data for SVM&quot;)
+plt.xlabel(&quot;Principal Component 1&quot;)
+plt.ylabel(&quot;Principal Component 2&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_svm_pca_data_view.png&quot;, dpi=200)
+plt.show()
+
+svm_pca_preview.to_csv(&quot;../cleaned_data/german_svm_pca_preview.csv&quot;, index=False)
+
+
+# ----- TRAIN TEST SPLIT -----
+
+x_train, x_test, y_train, y_test = train_test_split(
+    x_scaled, y, test_size=0.30, random_state=42, stratify=y
+)
+
+print(&quot;SVM training data shape:&quot;, x_train.shape)
+print(&quot;SVM testing data shape:&quot;, x_test.shape)
+
+
+# ----- SVM KERNEL AND COST COMPARISON -----
+
+# Test multiple kernels and multiple costs to go beyond the minimum requirement
+cost_values = [0.1, 1, 10, 100]
+
+svm_kernel_settings = [
+    {&quot;kernel_name&quot;: &quot;linear&quot;, &quot;kernel&quot;: &quot;linear&quot;, &quot;degree&quot;: 3},
+    {&quot;kernel_name&quot;: &quot;poly_degree_2&quot;, &quot;kernel&quot;: &quot;poly&quot;, &quot;degree&quot;: 2},
+    {&quot;kernel_name&quot;: &quot;poly_degree_3&quot;, &quot;kernel&quot;: &quot;poly&quot;, &quot;degree&quot;: 3},
+    {&quot;kernel_name&quot;: &quot;rbf&quot;, &quot;kernel&quot;: &quot;rbf&quot;, &quot;degree&quot;: 3},
+    {&quot;kernel_name&quot;: &quot;sigmoid&quot;, &quot;kernel&quot;: &quot;sigmoid&quot;, &quot;degree&quot;: 3}
+]
+
+svm_models = {}
+svm_predictions = {}
+svm_confusion_matrices = {}
+svm_result_rows = []
+
+for setting in svm_kernel_settings:
+    for cost in cost_values:
+
+        model_name = setting[&quot;kernel_name&quot;] + &quot;_C&quot; + str(cost).replace(&quot;.&quot;, &quot;_&quot;)
+
+        svm_model = SVC(
+            C=cost,
+            kernel=setting[&quot;kernel&quot;],
+            degree=setting[&quot;degree&quot;],
+            gamma=&quot;scale&quot;,
+            class_weight=&quot;balanced&quot;,
+            random_state=42
+        )
+
+        svm_model.fit(x_train, y_train)
+
+        predictions = svm_model.predict(x_test)
+        cm = confusion_matrix(y_test, predictions)
+
+        svm_models[model_name] = svm_model
+        svm_predictions[model_name] = predictions
+        svm_confusion_matrices[model_name] = cm
+
+        svm_result_rows.append({
+            &quot;model&quot;: model_name,
+            &quot;kernel_name&quot;: setting[&quot;kernel_name&quot;],
+            &quot;kernel&quot;: setting[&quot;kernel&quot;],
+            &quot;degree&quot;: setting[&quot;degree&quot;] if setting[&quot;kernel&quot;] == &quot;poly&quot; else &quot;not_applicable&quot;,
+            &quot;cost_c&quot;: cost,
+            &quot;accuracy&quot;: accuracy_score(y_test, predictions),
+            &quot;precision&quot;: precision_score(y_test, predictions, zero_division=0),
+            &quot;recall&quot;: recall_score(y_test, predictions, zero_division=0),
+            &quot;f1_score&quot;: f1_score(y_test, predictions, zero_division=0),
+            &quot;support_vectors_total&quot;: svm_model.n_support_.sum(),
+            &quot;support_vectors_lower_risk&quot;: svm_model.n_support_[0],
+            &quot;support_vectors_higher_risk&quot;: svm_model.n_support_[1],
+            &quot;true_lower_risk&quot;: cm[0, 0],
+            &quot;lower_risk_predicted_higher_risk&quot;: cm[0, 1],
+            &quot;higher_risk_predicted_lower_risk&quot;: cm[1, 0],
+            &quot;true_higher_risk&quot;: cm[1, 1]
+        })
+
+svm_results = pd.DataFrame(svm_result_rows)
+svm_results = svm_results.sort_values([&quot;f1_score&quot;, &quot;accuracy&quot;], ascending=False)
+svm_results = svm_results.round(4)
+
+print(svm_results)
+
+svm_results.to_csv(&quot;../cleaned_data/german_svm_kernel_cost_results.csv&quot;, index=False)
+
+
+# ----- SVM MODEL RESULTS TABLE IMAGE -----
+
+svm_results_preview = svm_results[[
+    &quot;model&quot;, &quot;kernel&quot;, &quot;degree&quot;, &quot;cost_c&quot;, &quot;accuracy&quot;, &quot;precision&quot;,
+    &quot;recall&quot;, &quot;f1_score&quot;, &quot;support_vectors_total&quot;
+]].head(12).copy()
+
+plt.figure(figsize=(16, 4))
+plt.axis(&quot;off&quot;)
+table = plt.table(cellText=svm_results_preview.values,
+                  colLabels=svm_results_preview.columns,
+                  loc=&quot;center&quot;)
+table.auto_set_font_size(False)
+table.set_fontsize(8)
+table.scale(1, 1.4)
+plt.title(&quot;Top German Credit SVM Kernel and Cost Results&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_svm_top_kernel_cost_results.png&quot;, dpi=200, bbox_inches=&quot;tight&quot;)
+plt.show()
+
+
+# ----- BEST MODEL FROM EACH KERNEL FAMILY -----
+
+best_svm_by_kernel = (
+    svm_results.sort_values([&quot;kernel_name&quot;, &quot;f1_score&quot;, &quot;accuracy&quot;], ascending=[True, False, False])
+    .groupby(&quot;kernel_name&quot;)
+    .head(1)
+    .reset_index(drop=True)
+)
+
+print(best_svm_by_kernel)
+
+best_svm_by_kernel.to_csv(&quot;../cleaned_data/german_svm_best_model_by_kernel.csv&quot;, index=False)
+
+best_svm_by_kernel_preview = best_svm_by_kernel[[
+    &quot;model&quot;, &quot;kernel&quot;, &quot;degree&quot;, &quot;cost_c&quot;, &quot;accuracy&quot;, &quot;precision&quot;,
+    &quot;recall&quot;, &quot;f1_score&quot;, &quot;support_vectors_total&quot;
+]].copy()
+
+plt.figure(figsize=(15, 3.5))
+plt.axis(&quot;off&quot;)
+table = plt.table(cellText=best_svm_by_kernel_preview.values,
+                  colLabels=best_svm_by_kernel_preview.columns,
+                  loc=&quot;center&quot;)
+table.auto_set_font_size(False)
+table.set_fontsize(8)
+table.scale(1, 1.4)
+plt.title(&quot;Best SVM Model From Each Kernel Family&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_svm_best_model_by_kernel.png&quot;, dpi=200, bbox_inches=&quot;tight&quot;)
+plt.show()
+
+
+# ----- COST COMPARISON PLOT -----
+
+plt.figure(figsize=(10, 6))
+
+for kernel_name in svm_results[&quot;kernel_name&quot;].unique():
+    kernel_subset = svm_results[svm_results[&quot;kernel_name&quot;] == kernel_name].sort_values(&quot;cost_c&quot;)
+    plt.plot(kernel_subset[&quot;cost_c&quot;], kernel_subset[&quot;accuracy&quot;], marker=&quot;o&quot;, label=kernel_name)
+
+plt.xscale(&quot;log&quot;)
+plt.title(&quot;SVM Accuracy by Kernel and Cost&quot;)
+plt.xlabel(&quot;Cost C&quot;)
+plt.ylabel(&quot;Accuracy&quot;)
+plt.legend()
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_svm_accuracy_by_kernel_and_cost.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- F1 SCORE COMPARISON PLOT -----
+
+plt.figure(figsize=(10, 6))
+
+for kernel_name in svm_results[&quot;kernel_name&quot;].unique():
+    kernel_subset = svm_results[svm_results[&quot;kernel_name&quot;] == kernel_name].sort_values(&quot;cost_c&quot;)
+    plt.plot(kernel_subset[&quot;cost_c&quot;], kernel_subset[&quot;f1_score&quot;], marker=&quot;o&quot;, label=kernel_name)
+
+plt.xscale(&quot;log&quot;)
+plt.title(&quot;SVM F1 Score by Kernel and Cost&quot;)
+plt.xlabel(&quot;Cost C&quot;)
+plt.ylabel(&quot;F1 Score&quot;)
+plt.legend()
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_svm_f1_by_kernel_and_cost.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- CONFUSION MATRICES FOR BEST MODEL FROM EACH KERNEL FAMILY -----
+
+svm_confusion_summary_rows = []
+
+for i in range(len(best_svm_by_kernel)):
+
+    model_name = best_svm_by_kernel.loc[i, &quot;model&quot;]
+    kernel_name = best_svm_by_kernel.loc[i, &quot;kernel_name&quot;]
+    cost = best_svm_by_kernel.loc[i, &quot;cost_c&quot;]
+    cm = svm_confusion_matrices[model_name]
+
+    svm_confusion_summary_rows.append({
+        &quot;model&quot;: model_name,
+        &quot;kernel_name&quot;: kernel_name,
+        &quot;cost_c&quot;: cost,
+        &quot;true_lower_risk&quot;: cm[0, 0],
+        &quot;lower_risk_predicted_higher_risk&quot;: cm[0, 1],
+        &quot;higher_risk_predicted_lower_risk&quot;: cm[1, 0],
+        &quot;true_higher_risk&quot;: cm[1, 1],
+        &quot;accuracy&quot;: accuracy_score(y_test, svm_predictions[model_name]),
+        &quot;precision&quot;: precision_score(y_test, svm_predictions[model_name], zero_division=0),
+        &quot;recall&quot;: recall_score(y_test, svm_predictions[model_name], zero_division=0),
+        &quot;f1_score&quot;: f1_score(y_test, svm_predictions[model_name], zero_division=0)
+    })
+
+    plt.figure(figsize=(6, 5))
+    sns.heatmap(cm, annot=True, fmt=&quot;d&quot;, cmap=&quot;Blues&quot;,
+                xticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;],
+                yticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;])
+    plt.title(&quot;SVM Confusion Matrix: &quot; + kernel_name + &quot; Kernel, C=&quot; + str(cost))
+    plt.xlabel(&quot;Predicted Label&quot;)
+    plt.ylabel(&quot;Actual Label&quot;)
+    plt.tight_layout()
+    plt.savefig(&quot;../figures/german_svm_&quot; + kernel_name + &quot;_best_confusion_matrix.png&quot;, dpi=200)
+    plt.show()
+
+svm_confusion_summary = pd.DataFrame(svm_confusion_summary_rows)
+svm_confusion_summary = svm_confusion_summary.round(4)
+
+print(svm_confusion_summary)
+
+svm_confusion_summary.to_csv(&quot;../cleaned_data/german_svm_confusion_summary.csv&quot;, index=False)
+
+plt.figure(figsize=(15, 3.5))
+plt.axis(&quot;off&quot;)
+table = plt.table(cellText=svm_confusion_summary.values,
+                  colLabels=svm_confusion_summary.columns,
+                  loc=&quot;center&quot;)
+table.auto_set_font_size(False)
+table.set_fontsize(8)
+table.scale(1, 1.4)
+plt.title(&quot;SVM Confusion Matrix Summary by Best Kernel Model&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_svm_confusion_summary.png&quot;, dpi=200, bbox_inches=&quot;tight&quot;)
+plt.show()
+
+
+# ----- SUPPORT VECTOR SUMMARY -----
+
+support_vector_summary = best_svm_by_kernel[[
+    &quot;model&quot;,
+    &quot;kernel_name&quot;,
+    &quot;cost_c&quot;,
+    &quot;support_vectors_total&quot;,
+    &quot;support_vectors_lower_risk&quot;,
+    &quot;support_vectors_higher_risk&quot;
+]].copy()
+
+print(support_vector_summary)
+
+support_vector_summary.to_csv(&quot;../cleaned_data/german_svm_support_vector_summary.csv&quot;, index=False)
+
+plt.figure(figsize=(10, 5))
+plt.bar(support_vector_summary[&quot;kernel_name&quot;], support_vector_summary[&quot;support_vectors_total&quot;])
+plt.title(&quot;Support Vector Count by Best SVM Kernel Model&quot;)
+plt.xlabel(&quot;Kernel&quot;)
+plt.ylabel(&quot;Number of Support Vectors&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_svm_support_vector_count.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- LINEAR SVM FEATURE IMPORTANCE USING COEFFICIENTS -----
+
+# Use the best linear SVM model to examine which scaled features had the largest coefficients
+linear_best_row = best_svm_by_kernel[best_svm_by_kernel[&quot;kernel_name&quot;] == &quot;linear&quot;].iloc[0]
+linear_best_model_name = linear_best_row[&quot;model&quot;]
+linear_best_model = svm_models[linear_best_model_name]
+
+linear_coefficients = pd.DataFrame({
+    &quot;feature&quot;: x_scaled.columns,
+    &quot;coefficient&quot;: linear_best_model.coef_[0]
+})
+
+linear_coefficients[&quot;absolute_coefficient&quot;] = linear_coefficients[&quot;coefficient&quot;].abs()
+linear_coefficients = linear_coefficients.sort_values(&quot;absolute_coefficient&quot;, ascending=False)
+linear_coefficients[&quot;coefficient&quot;] = linear_coefficients[&quot;coefficient&quot;].round(4)
+linear_coefficients[&quot;absolute_coefficient&quot;] = linear_coefficients[&quot;absolute_coefficient&quot;].round(4)
+
+print(linear_coefficients.head(12))
+
+linear_coefficients.to_csv(&quot;../cleaned_data/german_svm_linear_feature_coefficients.csv&quot;, index=False)
+
+linear_coefficients_preview = linear_coefficients.head(12).copy()
+
+plt.figure(figsize=(11, 4))
+plt.axis(&quot;off&quot;)
+table = plt.table(cellText=linear_coefficients_preview.values,
+                  colLabels=linear_coefficients_preview.columns,
+                  loc=&quot;center&quot;)
+table.auto_set_font_size(False)
+table.set_fontsize(8)
+table.scale(1, 1.4)
+plt.title(&quot;Top Linear SVM Feature Coefficients&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_svm_linear_feature_coefficients_table.png&quot;, dpi=200, bbox_inches=&quot;tight&quot;)
+plt.show()
+
+top_linear_features = linear_coefficients.head(12).sort_values(&quot;absolute_coefficient&quot;)
+
+plt.figure(figsize=(9, 6))
+plt.barh(top_linear_features[&quot;feature&quot;], top_linear_features[&quot;absolute_coefficient&quot;])
+plt.title(&quot;Top Linear SVM Feature Coefficients&quot;)
+plt.xlabel(&quot;Absolute Coefficient&quot;)
+plt.ylabel(&quot;Feature&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_svm_linear_feature_coefficients.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- PCA DECISION BOUNDARY VISUALIZATIONS -----
+
+# These are extra visualizations.
+# They train separate SVM models on the first two PCA components so the boundary can be shown in 2D.
+x_pca_train, x_pca_test, y_pca_train, y_pca_test = train_test_split(
+    x_pca, y, test_size=0.30, random_state=42, stratify=y
+)
+
+pca_boundary_rows = []
+
+for i in range(len(best_svm_by_kernel)):
+
+    kernel_name = best_svm_by_kernel.loc[i, &quot;kernel_name&quot;]
+    kernel = best_svm_by_kernel.loc[i, &quot;kernel&quot;]
+    cost = best_svm_by_kernel.loc[i, &quot;cost_c&quot;]
+    degree_value = best_svm_by_kernel.loc[i, &quot;degree&quot;]
+
+    if degree_value == &quot;not_applicable&quot;:
+        degree_value = 3
+
+    pca_svm_model = SVC(
+        C=cost,
+        kernel=kernel,
+        degree=int(degree_value),
+        gamma=&quot;scale&quot;,
+        class_weight=&quot;balanced&quot;,
+        random_state=42
+    )
+
+    pca_svm_model.fit(x_pca_train, y_pca_train)
+
+    pca_predictions = pca_svm_model.predict(x_pca_test)
+
+    pca_accuracy = accuracy_score(y_pca_test, pca_predictions)
+    pca_f1 = f1_score(y_pca_test, pca_predictions, zero_division=0)
+
+    pca_boundary_rows.append({
+        &quot;kernel_name&quot;: kernel_name,
+        &quot;kernel&quot;: kernel,
+        &quot;cost_c&quot;: cost,
+        &quot;degree&quot;: degree_value,
+        &quot;pca_accuracy&quot;: pca_accuracy,
+        &quot;pca_f1_score&quot;: pca_f1
+    })
+
+    x_min, x_max = x_pca[:, 0].min() - 1, x_pca[:, 0].max() + 1
+    y_min, y_max = x_pca[:, 1].min() - 1, x_pca[:, 1].max() + 1
+
+    xx, yy = np.meshgrid(
+        np.linspace(x_min, x_max, 300),
+        np.linspace(y_min, y_max, 300)
+    )
+
+    grid_predictions = pca_svm_model.predict(np.c_[xx.ravel(), yy.ravel()])
+    grid_predictions = grid_predictions.reshape(xx.shape)
+
+    plt.figure(figsize=(8, 6))
+    plt.contourf(xx, yy, grid_predictions, alpha=0.25)
+    plt.scatter(x_pca[:, 0], x_pca[:, 1], c=y, alpha=0.75, edgecolor=&quot;k&quot;, linewidth=0.2)
+    plt.title(&quot;PCA SVM Decision Boundary: &quot; + kernel_name + &quot; Kernel, C=&quot; + str(cost))
+    plt.xlabel(&quot;Principal Component 1&quot;)
+    plt.ylabel(&quot;Principal Component 2&quot;)
+    plt.tight_layout()
+    plt.savefig(&quot;../figures/german_svm_pca_boundary_&quot; + kernel_name + &quot;.png&quot;, dpi=200)
+    plt.show()
+
+pca_boundary_results = pd.DataFrame(pca_boundary_rows)
+pca_boundary_results = pca_boundary_results.round(4)
+
+print(pca_boundary_results)
+
+pca_boundary_results.to_csv(&quot;../cleaned_data/german_svm_pca_boundary_results.csv&quot;, index=False)
+
+
+# ----- FINAL SVM SUMMARY -----
+
+final_svm_summary = pd.DataFrame({
+    &quot;item&quot;: [
+        &quot;records_used&quot;,
+        &quot;features_before_scaling&quot;,
+        &quot;training_records&quot;,
+        &quot;testing_records&quot;,
+        &quot;kernels_tested&quot;,
+        &quot;cost_values_tested&quot;,
+        &quot;best_model_by_f1&quot;,
+        &quot;best_model_accuracy&quot;,
+        &quot;best_model_precision&quot;,
+        &quot;best_model_recall&quot;,
+        &quot;best_model_f1_score&quot;
+    ],
+    &quot;value&quot;: [
+        prepared_svm.shape[0],
+        x.shape[1],
+        x_train.shape[0],
+        x_test.shape[0],
+        &quot;, &quot;.join(best_svm_by_kernel[&quot;kernel_name&quot;].tolist()),
+        &quot;, &quot;.join([str(c) for c in cost_values]),
+        svm_results.iloc[0][&quot;model&quot;],
+        svm_results.iloc[0][&quot;accuracy&quot;],
+        svm_results.iloc[0][&quot;precision&quot;],
+        svm_results.iloc[0][&quot;recall&quot;],
+        svm_results.iloc[0][&quot;f1_score&quot;]
+    ]
+})
+
+print(final_svm_summary)
+
+final_svm_summary.to_csv(&quot;../cleaned_data/german_svm_final_summary.csv&quot;, index=False)
+
+plt.figure(figsize=(12, 4))
+plt.axis(&quot;off&quot;)
+table = plt.table(cellText=final_svm_summary.values,
+                  colLabels=final_svm_summary.columns,
+                  loc=&quot;center&quot;)
+table.auto_set_font_size(False)
+table.set_fontsize(9)
+table.scale(1, 1.4)
+plt.title(&quot;Final SVM Classification Summary&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_svm_final_summary.png&quot;, dpi=200, bbox_inches=&quot;tight&quot;)
+plt.show()
+
+
+# ----- ENSEMBLE CLASSIFICATION -----
+
+
+# ----- ENSEMBLE DATA PREPARATION -----
+
+# Ensemble models will use the same prepared German Credit data as the SVM section.
+# The target is bad_credit:
+# 0 = Lower Risk
+# 1 = Higher Risk
+
+x_ensemble = x.copy()
+y_ensemble = y.copy()
+
+prepared_ensemble = x_ensemble.copy()
+prepared_ensemble[&quot;bad_credit&quot;] = y_ensemble.values
+
+print(prepared_ensemble.head())
+print(prepared_ensemble.info())
+print(prepared_ensemble.isnull().sum())
+print(&quot;Duplicate rows:&quot;, prepared_ensemble.duplicated().sum())
+
+prepared_ensemble.to_csv(&quot;../cleaned_data/german_ensemble_prepared.csv&quot;, index=False)
+
+# Use the  70/30 split structure for ensemble models
+x_ensemble_train, x_ensemble_test, y_ensemble_train, y_ensemble_test = train_test_split(
+    x_ensemble, y_ensemble, test_size=0.30, random_state=42, stratify=y_ensemble
+)
+
+# Keep a scaled version for Stacking models that include Logistic Regression or SVM
+x_ensemble_scaled = x_scaled.copy()
+
+x_ensemble_scaled_train, x_ensemble_scaled_test, y_ensemble_scaled_train, y_ensemble_scaled_test = train_test_split(
+    x_ensemble_scaled, y_ensemble, test_size=0.30, random_state=42, stratify=y_ensemble
+)
+
+print(&quot;Ensemble training data shape:&quot;, x_ensemble_train.shape)
+print(&quot;Ensemble testing data shape:&quot;, x_ensemble_test.shape)
+
+
+# Create image of class distribution for ensemble models
+ensemble_class_counts = prepared_ensemble[&quot;bad_credit&quot;].value_counts().sort_index()
+
+plt.figure(figsize=(8, 5))
+plt.bar([&quot;Lower Risk&quot;, &quot;Higher Risk&quot;], ensemble_class_counts.values)
+plt.title(&quot;German Credit Risk Distribution for Ensemble Classification&quot;)
+plt.xlabel(&quot;Credit Risk Group&quot;)
+plt.ylabel(&quot;Count&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_ensemble_class_distribution.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- RANDOM FOREST CLASSIFICATION -----
+
+# Test multiple Random Forest settings to go beyond the minimum requirement
+random_forest_settings = []
+
+for n_trees in [100, 200, 500]:
+    for max_depth in [3, 5, 8, None]:
+        for min_leaf in [5, 10, 15]:
+            random_forest_settings.append({
+                &quot;n_estimators&quot;: n_trees,
+                &quot;max_depth&quot;: max_depth,
+                &quot;min_samples_leaf&quot;: min_leaf
+            })
+
+random_forest_models = {}
+random_forest_predictions = {}
+random_forest_confusion_matrices = {}
+random_forest_result_rows = []
+
+for setting in random_forest_settings:
+
+    model_name = (
+        &quot;rf_&quot;
+        + str(setting[&quot;n_estimators&quot;])
+        + &quot;_trees_depth_&quot;
+        + str(setting[&quot;max_depth&quot;])
+        + &quot;_leaf_&quot;
+        + str(setting[&quot;min_samples_leaf&quot;])
+    )
+
+    random_forest_model = RandomForestClassifier(
+        n_estimators=setting[&quot;n_estimators&quot;],
+        max_depth=setting[&quot;max_depth&quot;],
+        min_samples_leaf=setting[&quot;min_samples_leaf&quot;],
+        class_weight=&quot;balanced&quot;,
+        random_state=42
+    )
+
+    random_forest_model.fit(x_ensemble_train, y_ensemble_train)
+
+    predictions = random_forest_model.predict(x_ensemble_test)
+    cm = confusion_matrix(y_ensemble_test, predictions)
+
+    random_forest_models[model_name] = random_forest_model
+    random_forest_predictions[model_name] = predictions
+    random_forest_confusion_matrices[model_name] = cm
+
+    random_forest_result_rows.append({
+        &quot;model&quot;: model_name,
+        &quot;n_estimators&quot;: setting[&quot;n_estimators&quot;],
+        &quot;max_depth&quot;: setting[&quot;max_depth&quot;],
+        &quot;min_samples_leaf&quot;: setting[&quot;min_samples_leaf&quot;],
+        &quot;accuracy&quot;: accuracy_score(y_ensemble_test, predictions),
+        &quot;precision&quot;: precision_score(y_ensemble_test, predictions, zero_division=0),
+        &quot;recall&quot;: recall_score(y_ensemble_test, predictions, zero_division=0),
+        &quot;f1_score&quot;: f1_score(y_ensemble_test, predictions, zero_division=0),
+        &quot;true_lower_risk&quot;: cm[0, 0],
+        &quot;lower_risk_predicted_higher_risk&quot;: cm[0, 1],
+        &quot;higher_risk_predicted_lower_risk&quot;: cm[1, 0],
+        &quot;true_higher_risk&quot;: cm[1, 1]
+    })
+
+random_forest_results = pd.DataFrame(random_forest_result_rows)
+random_forest_results = random_forest_results.sort_values([&quot;f1_score&quot;, &quot;accuracy&quot;], ascending=False)
+random_forest_results = random_forest_results.round(4)
+
+print(random_forest_results)
+
+random_forest_results.to_csv(&quot;../cleaned_data/german_random_forest_results.csv&quot;, index=False)
+
+
+# Create image of top Random Forest results
+random_forest_results_preview = random_forest_results[[
+    &quot;model&quot;, &quot;n_estimators&quot;, &quot;max_depth&quot;, &quot;min_samples_leaf&quot;,
+    &quot;accuracy&quot;, &quot;precision&quot;, &quot;recall&quot;, &quot;f1_score&quot;
+]].head(12).copy()
+
+plt.figure(figsize=(16, 4))
+plt.axis(&quot;off&quot;)
+table = plt.table(cellText=random_forest_results_preview.values,
+                  colLabels=random_forest_results_preview.columns,
+                  loc=&quot;center&quot;)
+table.auto_set_font_size(False)
+table.set_fontsize(8)
+table.scale(1, 1.4)
+plt.title(&quot;Top German Credit Random Forest Results&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_random_forest_top_results.png&quot;, dpi=200, bbox_inches=&quot;tight&quot;)
+plt.show()
+
+
+# Best Random Forest model
+best_random_forest_name = random_forest_results.iloc[0][&quot;model&quot;]
+best_random_forest_model = random_forest_models[best_random_forest_name]
+best_random_forest_predictions = random_forest_predictions[best_random_forest_name]
+best_random_forest_cm = random_forest_confusion_matrices[best_random_forest_name]
+
+print(&quot;Best Random Forest model:&quot;, best_random_forest_name)
+print(best_random_forest_cm)
+
+# Confusion matrix for best Random Forest
+plt.figure(figsize=(6, 5))
+sns.heatmap(best_random_forest_cm, annot=True, fmt=&quot;d&quot;, cmap=&quot;Blues&quot;,
+            xticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;],
+            yticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;])
+plt.title(&quot;Random Forest Confusion Matrix&quot;)
+plt.xlabel(&quot;Predicted Label&quot;)
+plt.ylabel(&quot;Actual Label&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_random_forest_confusion_matrix.png&quot;, dpi=200)
+plt.show()
+
+
+# Random Forest feature importances
+random_forest_feature_importance = pd.DataFrame({
+    &quot;feature&quot;: x_ensemble.columns,
+    &quot;importance&quot;: best_random_forest_model.feature_importances_
+})
+
+random_forest_feature_importance = random_forest_feature_importance.sort_values(&quot;importance&quot;, ascending=False)
+random_forest_feature_importance[&quot;importance&quot;] = random_forest_feature_importance[&quot;importance&quot;].round(4)
+
+print(random_forest_feature_importance.head(12))
+
+random_forest_feature_importance.to_csv(&quot;../cleaned_data/german_random_forest_feature_importance.csv&quot;, index=False)
+
+random_forest_feature_importance_preview = random_forest_feature_importance.head(12).copy()
+
+plt.figure(figsize=(11, 4))
+plt.axis(&quot;off&quot;)
+table = plt.table(cellText=random_forest_feature_importance_preview.values,
+                  colLabels=random_forest_feature_importance_preview.columns,
+                  loc=&quot;center&quot;)
+table.auto_set_font_size(False)
+table.set_fontsize(8)
+table.scale(1, 1.4)
+plt.title(&quot;Top Random Forest Feature Importances&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_random_forest_feature_importance_table.png&quot;, dpi=200, bbox_inches=&quot;tight&quot;)
+plt.show()
+
+top_random_forest_features = random_forest_feature_importance.head(12).sort_values(&quot;importance&quot;)
+
+plt.figure(figsize=(9, 6))
+plt.barh(top_random_forest_features[&quot;feature&quot;], top_random_forest_features[&quot;importance&quot;])
+plt.title(&quot;Top Random Forest Feature Importances&quot;)
+plt.xlabel(&quot;Feature Importance&quot;)
+plt.ylabel(&quot;Feature&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_random_forest_feature_importance.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- RANDOM FOREST THREE-TREE VISUALIZATION -----
+
+# Create a smaller Random Forest with 3 trees for visual illustration
+best_rf_depth = random_forest_results.iloc[0][&quot;max_depth&quot;]
+best_rf_leaf = int(random_forest_results.iloc[0][&quot;min_samples_leaf&quot;])
+
+if best_rf_depth == &quot;None&quot; or pd.isna(best_rf_depth):
+    best_rf_depth = None
+else:
+    best_rf_depth = int(best_rf_depth)
+
+random_forest_three_trees = RandomForestClassifier(
+    n_estimators=3,
+    max_depth=best_rf_depth,
+    min_samples_leaf=best_rf_leaf,
+    class_weight=&quot;balanced&quot;,
+    random_state=42
+)
+
+random_forest_three_trees.fit(x_ensemble_train, y_ensemble_train)
+
+for tree_number in range(3):
+
+    plt.figure(figsize=(22, 10))
+    plot_tree(
+        random_forest_three_trees.estimators_[tree_number],
+        feature_names=x_ensemble.columns,
+        class_names=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;],
+        rounded=True,
+        fontsize=7
+    )
+    plt.title(&quot;Random Forest Example Tree &quot; + str(tree_number + 1))
+    plt.tight_layout()
+    plt.savefig(&quot;../figures/german_random_forest_example_tree_&quot; + str(tree_number + 1) + &quot;.png&quot;, dpi=200)
+    plt.show()
+
+
+# ----- ADABOOST CLASSIFICATION -----
+
+# Test multiple AdaBoost settings
+adaboost_settings = []
+
+for n_estimators in [50, 100, 200, 500]:
+    for learning_rate in [0.01, 0.1, 0.5, 1.0]:
+        for max_depth in [1, 2, 3]:
+            adaboost_settings.append({
+                &quot;n_estimators&quot;: n_estimators,
+                &quot;learning_rate&quot;: learning_rate,
+                &quot;max_depth&quot;: max_depth
+            })
+
+adaboost_models = {}
+adaboost_predictions = {}
+adaboost_confusion_matrices = {}
+adaboost_result_rows = []
+
+for setting in adaboost_settings:
+
+    model_name = (
+        &quot;ada_&quot;
+        + str(setting[&quot;n_estimators&quot;])
+        + &quot;_estimators_lr_&quot;
+        + str(setting[&quot;learning_rate&quot;]).replace(&quot;.&quot;, &quot;_&quot;)
+        + &quot;_depth_&quot;
+        + str(setting[&quot;max_depth&quot;])
+    )
+
+    adaboost_base_tree = DecisionTreeClassifier(
+        max_depth=setting[&quot;max_depth&quot;],
+        min_samples_leaf=10,
+        class_weight=&quot;balanced&quot;,
+        random_state=42
+    )
+
+    try:
+        adaboost_model = AdaBoostClassifier(
+            estimator=adaboost_base_tree,
+            n_estimators=setting[&quot;n_estimators&quot;],
+            learning_rate=setting[&quot;learning_rate&quot;],
+            random_state=42
+        )
+    except TypeError:
+        adaboost_model = AdaBoostClassifier(
+            base_estimator=adaboost_base_tree,
+            n_estimators=setting[&quot;n_estimators&quot;],
+            learning_rate=setting[&quot;learning_rate&quot;],
+            random_state=42
+        )
+
+    adaboost_model.fit(x_ensemble_train, y_ensemble_train)
+
+    predictions = adaboost_model.predict(x_ensemble_test)
+    cm = confusion_matrix(y_ensemble_test, predictions)
+
+    adaboost_models[model_name] = adaboost_model
+    adaboost_predictions[model_name] = predictions
+    adaboost_confusion_matrices[model_name] = cm
+
+    adaboost_result_rows.append({
+        &quot;model&quot;: model_name,
+        &quot;n_estimators&quot;: setting[&quot;n_estimators&quot;],
+        &quot;learning_rate&quot;: setting[&quot;learning_rate&quot;],
+        &quot;base_tree_max_depth&quot;: setting[&quot;max_depth&quot;],
+        &quot;accuracy&quot;: accuracy_score(y_ensemble_test, predictions),
+        &quot;precision&quot;: precision_score(y_ensemble_test, predictions, zero_division=0),
+        &quot;recall&quot;: recall_score(y_ensemble_test, predictions, zero_division=0),
+        &quot;f1_score&quot;: f1_score(y_ensemble_test, predictions, zero_division=0),
+        &quot;true_lower_risk&quot;: cm[0, 0],
+        &quot;lower_risk_predicted_higher_risk&quot;: cm[0, 1],
+        &quot;higher_risk_predicted_lower_risk&quot;: cm[1, 0],
+        &quot;true_higher_risk&quot;: cm[1, 1]
+    })
+
+adaboost_results = pd.DataFrame(adaboost_result_rows)
+adaboost_results = adaboost_results.sort_values([&quot;f1_score&quot;, &quot;accuracy&quot;], ascending=False)
+adaboost_results = adaboost_results.round(4)
+
+print(adaboost_results)
+
+adaboost_results.to_csv(&quot;../cleaned_data/german_adaboost_results.csv&quot;, index=False)
+
+
+# Create image of top AdaBoost results
+adaboost_results_preview = adaboost_results[[
+    &quot;model&quot;, &quot;n_estimators&quot;, &quot;learning_rate&quot;, &quot;base_tree_max_depth&quot;,
+    &quot;accuracy&quot;, &quot;precision&quot;, &quot;recall&quot;, &quot;f1_score&quot;
+]].head(12).copy()
+
+plt.figure(figsize=(16, 4))
+plt.axis(&quot;off&quot;)
+table = plt.table(cellText=adaboost_results_preview.values,
+                  colLabels=adaboost_results_preview.columns,
+                  loc=&quot;center&quot;)
+table.auto_set_font_size(False)
+table.set_fontsize(8)
+table.scale(1, 1.4)
+plt.title(&quot;Top German Credit AdaBoost Results&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_adaboost_top_results.png&quot;, dpi=200, bbox_inches=&quot;tight&quot;)
+plt.show()
+
+
+# Best AdaBoost model
+best_adaboost_name = adaboost_results.iloc[0][&quot;model&quot;]
+best_adaboost_model = adaboost_models[best_adaboost_name]
+best_adaboost_predictions = adaboost_predictions[best_adaboost_name]
+best_adaboost_cm = adaboost_confusion_matrices[best_adaboost_name]
+
+print(&quot;Best AdaBoost model:&quot;, best_adaboost_name)
+print(best_adaboost_cm)
+
+# Confusion matrix for best AdaBoost
+plt.figure(figsize=(6, 5))
+sns.heatmap(best_adaboost_cm, annot=True, fmt=&quot;d&quot;, cmap=&quot;Blues&quot;,
+            xticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;],
+            yticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;])
+plt.title(&quot;AdaBoost Confusion Matrix&quot;)
+plt.xlabel(&quot;Predicted Label&quot;)
+plt.ylabel(&quot;Actual Label&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_adaboost_confusion_matrix.png&quot;, dpi=200)
+plt.show()
+
+
+# AdaBoost feature importances
+adaboost_feature_importance = pd.DataFrame({
+    &quot;feature&quot;: x_ensemble.columns,
+    &quot;importance&quot;: best_adaboost_model.feature_importances_
+})
+
+adaboost_feature_importance = adaboost_feature_importance.sort_values(&quot;importance&quot;, ascending=False)
+adaboost_feature_importance[&quot;importance&quot;] = adaboost_feature_importance[&quot;importance&quot;].round(4)
+
+print(adaboost_feature_importance.head(12))
+
+adaboost_feature_importance.to_csv(&quot;../cleaned_data/german_adaboost_feature_importance.csv&quot;, index=False)
+
+adaboost_feature_importance_preview = adaboost_feature_importance.head(12).copy()
+
+plt.figure(figsize=(11, 4))
+plt.axis(&quot;off&quot;)
+table = plt.table(cellText=adaboost_feature_importance_preview.values,
+                  colLabels=adaboost_feature_importance_preview.columns,
+                  loc=&quot;center&quot;)
+table.auto_set_font_size(False)
+table.set_fontsize(8)
+table.scale(1, 1.4)
+plt.title(&quot;Top AdaBoost Feature Importances&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_adaboost_feature_importance_table.png&quot;, dpi=200, bbox_inches=&quot;tight&quot;)
+plt.show()
+
+top_adaboost_features = adaboost_feature_importance.head(12).sort_values(&quot;importance&quot;)
+
+plt.figure(figsize=(9, 6))
+plt.barh(top_adaboost_features[&quot;feature&quot;], top_adaboost_features[&quot;importance&quot;])
+plt.title(&quot;Top AdaBoost Feature Importances&quot;)
+plt.xlabel(&quot;Feature Importance&quot;)
+plt.ylabel(&quot;Feature&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_adaboost_feature_importance.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- STACKING CLASSIFICATION -----
+
+# Stacking combines multiple different models and lets a final model learn from their predictions.
+
+stacking_settings = [
+    {
+        &quot;model_name&quot;: &quot;stack_logistic_final&quot;,
+        &quot;final_estimator&quot;: LogisticRegression(max_iter=2000, class_weight=&quot;balanced&quot;, random_state=42)
+    },
+    {
+        &quot;model_name&quot;: &quot;stack_random_forest_final&quot;,
+        &quot;final_estimator&quot;: RandomForestClassifier(
+            n_estimators=200,
+            max_depth=3,
+            min_samples_leaf=10,
+            class_weight=&quot;balanced&quot;,
+            random_state=42
+        )
+    }
+]
+
+stacking_models = {}
+stacking_predictions = {}
+stacking_confusion_matrices = {}
+stacking_result_rows = []
+
+for setting in stacking_settings:
+
+    base_estimators = [
+        (&quot;logistic&quot;, LogisticRegression(max_iter=2000, class_weight=&quot;balanced&quot;, random_state=42)),
+        (&quot;decision_tree&quot;, DecisionTreeClassifier(max_depth=4, min_samples_leaf=10, class_weight=&quot;balanced&quot;, random_state=42)),
+        (&quot;random_forest&quot;, RandomForestClassifier(n_estimators=200, max_depth=5, min_samples_leaf=10, class_weight=&quot;balanced&quot;, random_state=42)),
+        (&quot;gaussian_nb&quot;, GaussianNB()),
+        (&quot;svm_rbf&quot;, SVC(C=1, kernel=&quot;rbf&quot;, gamma=&quot;scale&quot;, class_weight=&quot;balanced&quot;, probability=True, random_state=42))
+    ]
+
+    stacking_model = StackingClassifier(
+        estimators=base_estimators,
+        final_estimator=setting[&quot;final_estimator&quot;],
+        stack_method=&quot;auto&quot;,
+        cv=5,
+        n_jobs=-1
+    )
+
+    stacking_model.fit(x_ensemble_scaled_train, y_ensemble_scaled_train)
+
+    predictions = stacking_model.predict(x_ensemble_scaled_test)
+    cm = confusion_matrix(y_ensemble_scaled_test, predictions)
+
+    stacking_models[setting[&quot;model_name&quot;]] = stacking_model
+    stacking_predictions[setting[&quot;model_name&quot;]] = predictions
+    stacking_confusion_matrices[setting[&quot;model_name&quot;]] = cm
+
+    stacking_result_rows.append({
+        &quot;model&quot;: setting[&quot;model_name&quot;],
+        &quot;base_models&quot;: &quot;logistic, decision_tree, random_forest, gaussian_nb, svm_rbf&quot;,
+        &quot;final_estimator&quot;: setting[&quot;final_estimator&quot;].__class__.__name__,
+        &quot;accuracy&quot;: accuracy_score(y_ensemble_scaled_test, predictions),
+        &quot;precision&quot;: precision_score(y_ensemble_scaled_test, predictions, zero_division=0),
+        &quot;recall&quot;: recall_score(y_ensemble_scaled_test, predictions, zero_division=0),
+        &quot;f1_score&quot;: f1_score(y_ensemble_scaled_test, predictions, zero_division=0),
+        &quot;true_lower_risk&quot;: cm[0, 0],
+        &quot;lower_risk_predicted_higher_risk&quot;: cm[0, 1],
+        &quot;higher_risk_predicted_lower_risk&quot;: cm[1, 0],
+        &quot;true_higher_risk&quot;: cm[1, 1]
+    })
+
+stacking_results = pd.DataFrame(stacking_result_rows)
+stacking_results = stacking_results.sort_values([&quot;f1_score&quot;, &quot;accuracy&quot;], ascending=False)
+stacking_results = stacking_results.round(4)
+
+print(stacking_results)
+
+stacking_results.to_csv(&quot;../cleaned_data/german_stacking_results.csv&quot;, index=False)
+
+
+# Create image of Stacking results
+stacking_results_preview = stacking_results[[
+    &quot;model&quot;, &quot;final_estimator&quot;, &quot;accuracy&quot;, &quot;precision&quot;, &quot;recall&quot;, &quot;f1_score&quot;
+]].copy()
+
+plt.figure(figsize=(12, 3))
+plt.axis(&quot;off&quot;)
+table = plt.table(cellText=stacking_results_preview.values,
+                  colLabels=stacking_results_preview.columns,
+                  loc=&quot;center&quot;)
+table.auto_set_font_size(False)
+table.set_fontsize(8)
+table.scale(1, 1.4)
+plt.title(&quot;German Credit Stacking Results&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_stacking_results.png&quot;, dpi=200, bbox_inches=&quot;tight&quot;)
+plt.show()
+
+
+# Best Stacking model
+best_stacking_name = stacking_results.iloc[0][&quot;model&quot;]
+best_stacking_model = stacking_models[best_stacking_name]
+best_stacking_predictions = stacking_predictions[best_stacking_name]
+best_stacking_cm = stacking_confusion_matrices[best_stacking_name]
+
+print(&quot;Best Stacking model:&quot;, best_stacking_name)
+print(best_stacking_cm)
+
+# Confusion matrix for best Stacking
+plt.figure(figsize=(6, 5))
+sns.heatmap(best_stacking_cm, annot=True, fmt=&quot;d&quot;, cmap=&quot;Blues&quot;,
+            xticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;],
+            yticklabels=[&quot;Lower Risk&quot;, &quot;Higher Risk&quot;])
+plt.title(&quot;Stacking Confusion Matrix&quot;)
+plt.xlabel(&quot;Predicted Label&quot;)
+plt.ylabel(&quot;Actual Label&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_stacking_confusion_matrix.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- ENSEMBLE MODEL COMPARISON -----
+
+ensemble_comparison = pd.DataFrame({
+    &quot;model_type&quot;: [&quot;Random Forest&quot;, &quot;AdaBoost&quot;, &quot;Stacking&quot;],
+    &quot;best_model&quot;: [best_random_forest_name, best_adaboost_name, best_stacking_name],
+    &quot;accuracy&quot;: [
+        accuracy_score(y_ensemble_test, best_random_forest_predictions),
+        accuracy_score(y_ensemble_test, best_adaboost_predictions),
+        accuracy_score(y_ensemble_scaled_test, best_stacking_predictions)
+    ],
+    &quot;precision&quot;: [
+        precision_score(y_ensemble_test, best_random_forest_predictions, zero_division=0),
+        precision_score(y_ensemble_test, best_adaboost_predictions, zero_division=0),
+        precision_score(y_ensemble_scaled_test, best_stacking_predictions, zero_division=0)
+    ],
+    &quot;recall&quot;: [
+        recall_score(y_ensemble_test, best_random_forest_predictions, zero_division=0),
+        recall_score(y_ensemble_test, best_adaboost_predictions, zero_division=0),
+        recall_score(y_ensemble_scaled_test, best_stacking_predictions, zero_division=0)
+    ],
+    &quot;f1_score&quot;: [
+        f1_score(y_ensemble_test, best_random_forest_predictions, zero_division=0),
+        f1_score(y_ensemble_test, best_adaboost_predictions, zero_division=0),
+        f1_score(y_ensemble_scaled_test, best_stacking_predictions, zero_division=0)
+    ],
+    &quot;true_lower_risk&quot;: [
+        best_random_forest_cm[0, 0],
+        best_adaboost_cm[0, 0],
+        best_stacking_cm[0, 0]
+    ],
+    &quot;lower_risk_predicted_higher_risk&quot;: [
+        best_random_forest_cm[0, 1],
+        best_adaboost_cm[0, 1],
+        best_stacking_cm[0, 1]
+    ],
+    &quot;higher_risk_predicted_lower_risk&quot;: [
+        best_random_forest_cm[1, 0],
+        best_adaboost_cm[1, 0],
+        best_stacking_cm[1, 0]
+    ],
+    &quot;true_higher_risk&quot;: [
+        best_random_forest_cm[1, 1],
+        best_adaboost_cm[1, 1],
+        best_stacking_cm[1, 1]
+    ]
+})
+
+ensemble_comparison = ensemble_comparison.round(4)
+ensemble_comparison = ensemble_comparison.sort_values([&quot;f1_score&quot;, &quot;accuracy&quot;], ascending=False)
+
+print(ensemble_comparison)
+
+ensemble_comparison.to_csv(&quot;../cleaned_data/german_ensemble_model_comparison.csv&quot;, index=False)
+
+# Create image of ensemble model comparison
+ensemble_comparison_preview = ensemble_comparison[[
+    &quot;model_type&quot;, &quot;best_model&quot;, &quot;accuracy&quot;, &quot;precision&quot;, &quot;recall&quot;, &quot;f1_score&quot;,
+    &quot;true_lower_risk&quot;, &quot;true_higher_risk&quot;
+]].copy()
+
+plt.figure(figsize=(16, 3.2))
+plt.axis(&quot;off&quot;)
+table = plt.table(cellText=ensemble_comparison_preview.values,
+                  colLabels=ensemble_comparison_preview.columns,
+                  loc=&quot;center&quot;)
+table.auto_set_font_size(False)
+table.set_fontsize(8)
+table.scale(1, 1.4)
+plt.title(&quot;German Credit Ensemble Model Comparison&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_ensemble_model_comparison.png&quot;, dpi=200, bbox_inches=&quot;tight&quot;)
+plt.show()
+
+
+# Ensemble metric comparison plot
+ensemble_metric_plot = ensemble_comparison[[&quot;model_type&quot;, &quot;accuracy&quot;, &quot;precision&quot;, &quot;recall&quot;, &quot;f1_score&quot;]].copy()
+ensemble_metric_plot = ensemble_metric_plot.set_index(&quot;model_type&quot;)
+
+ensemble_metric_plot.plot(kind=&quot;bar&quot;, figsize=(10, 6))
+plt.title(&quot;German Credit Ensemble Model Metrics&quot;)
+plt.xlabel(&quot;Model Type&quot;)
+plt.ylabel(&quot;Score&quot;)
+plt.xticks(rotation=0)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_ensemble_model_metrics.png&quot;, dpi=200)
+plt.show()
+
+
+# ----- FINAL ENSEMBLE SUMMARY -----
+
+final_ensemble_summary = pd.DataFrame({
+    &quot;item&quot;: [
+        &quot;records_used&quot;,
+        &quot;features_used&quot;,
+        &quot;training_records&quot;,
+        &quot;testing_records&quot;,
+        &quot;random_forest_settings_tested&quot;,
+        &quot;adaboost_settings_tested&quot;,
+        &quot;stacking_models_tested&quot;,
+        &quot;best_ensemble_model&quot;,
+        &quot;best_ensemble_accuracy&quot;,
+        &quot;best_ensemble_precision&quot;,
+        &quot;best_ensemble_recall&quot;,
+        &quot;best_ensemble_f1_score&quot;
+    ],
+    &quot;value&quot;: [
+        prepared_ensemble.shape[0],
+        x_ensemble.shape[1],
+        x_ensemble_train.shape[0],
+        x_ensemble_test.shape[0],
+        len(random_forest_settings),
+        len(adaboost_settings),
+        len(stacking_settings),
+        ensemble_comparison.iloc[0][&quot;model_type&quot;],
+        ensemble_comparison.iloc[0][&quot;accuracy&quot;],
+        ensemble_comparison.iloc[0][&quot;precision&quot;],
+        ensemble_comparison.iloc[0][&quot;recall&quot;],
+        ensemble_comparison.iloc[0][&quot;f1_score&quot;]
+    ]
+})
+
+print(final_ensemble_summary)
+
+final_ensemble_summary.to_csv(&quot;../cleaned_data/german_ensemble_final_summary.csv&quot;, index=False)
+
+plt.figure(figsize=(12, 4))
+plt.axis(&quot;off&quot;)
+table = plt.table(cellText=final_ensemble_summary.values,
+                  colLabels=final_ensemble_summary.columns,
+                  loc=&quot;center&quot;)
+table.auto_set_font_size(False)
+table.set_fontsize(9)
+table.scale(1, 1.4)
+plt.title(&quot;Final Ensemble Classification Summary&quot;)
+plt.tight_layout()
+plt.savefig(&quot;../figures/german_ensemble_final_summary.png&quot;, dpi=200, bbox_inches=&quot;tight&quot;)
+plt.show()
+</code></pre>
+    </details>
+    </section>
+  </main>
+
+  <footer>
+    <p>Created by Richard Le for CS 432: Intro to Applied Machine Learning.</p>
+  </footer>
+
+  <script>
+    function openTarget() {
+      var h = location.hash.slice(1);
+      if (!h) return;
+      var d = document.getElementById(h);
+      if (d && d.tagName === 'DETAILS') { d.open = true; d.scrollIntoView(); }
+    }
+    window.addEventListener('hashchange', openTarget);
+    window.addEventListener('DOMContentLoaded', openTarget);
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest('a[href^="#"]');
+      if (!a) return;
+      var d = document.getElementById(a.getAttribute('href').slice(1));
+      if (d && d.tagName === 'DETAILS') d.open = true;
+    });
+  </script>
+</body>
+</html>
